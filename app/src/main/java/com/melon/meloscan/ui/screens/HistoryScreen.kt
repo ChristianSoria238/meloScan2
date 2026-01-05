@@ -19,6 +19,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.melon.meloscan.R
+import com.melon.meloscan.ui.navigation.AppBottomBar
 
 
 data class ScanHistoryItem(
@@ -58,6 +59,7 @@ fun HistoryScreen() {
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
+        bottomBar = { AppBottomBar("History") },
         containerColor = Color.White
     ) { padding ->
         LazyColumn(
@@ -73,6 +75,7 @@ fun HistoryScreen() {
         }
     }
 }
+
 
 @Composable
 fun HistoryItemCard(item: ScanHistoryItem) {

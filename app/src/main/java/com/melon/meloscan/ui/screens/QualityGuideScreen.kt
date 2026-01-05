@@ -19,6 +19,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.melon.meloscan.R
+import com.melon.meloscan.ui.navigation.AppBottomBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,42 +38,7 @@ fun QualityGuideScreen() {
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
-        bottomBar = {
-            NavigationBar(containerColor = Color.White) {
-                NavigationBarItem(
-                    selected = true,
-                    onClick = {},
-                    icon = { Icon(painterResource(R.drawable.ic_home),
-                        null) },
-                    label = { Text("Home") },
-                    modifier = Modifier.size(28.dp)
-                )
-                NavigationBarItem(
-                    selected = false,
-                    onClick = {},
-                    icon = { Icon(painterResource(R.drawable.ic_scnner),
-                        null) },
-                    label = { Text("Scan") },
-                    modifier = Modifier.size(28.dp)
-                )
-                NavigationBarItem(
-                    selected = false,
-                    onClick = {},
-                    icon = { Icon(painterResource(R.drawable.ic_history),
-                        null) },
-                    label = { Text("History") },
-                    modifier = Modifier.size(28.dp)
-                )
-                NavigationBarItem(
-                    selected = false,
-                    onClick = {},
-                    icon = { Icon(painterResource(R.drawable.ic_guide),
-                        null) },
-                    label = { Text("Guide") },
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-        },
+        bottomBar = { AppBottomBar("Guide") },
         containerColor = Color.White
     ) { padding ->
         LazyColumn(
