@@ -4,12 +4,17 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -18,80 +23,109 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import com.melon.meloscan.R
 import com.melon.meloscan.ui.navigation.AppBottomBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun QualityGuideScreen() {
+fun QualityGuideScreen(navController: NavController) {
     Scaffold(
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        "Quality Guide",
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center
+                        "Farmer's Guide",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 22.sp
                     )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Color.White
+                )
             )
         },
-        bottomBar = { AppBottomBar("Guide") },
+        bottomBar = {
+            AppBottomBar(
+                navController = navController,
+                currentScreen = "Guide"
+            )
+        },
         containerColor = Color.White
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-            contentPadding = PaddingValues(vertical = 20.dp)
+                .padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            contentPadding = PaddingValues(top = 10.dp, bottom = 30.dp)
         ) {
-            
-        }
-    }
-}
-
-@Composable
-fun GuideSection(
-    iconRes: Int,
-    title: String,
-    description: String,
-    images: List<Int>,
-    lowQualityIndex: Int,
-    lowQualityLabelIsHigh: Boolean = false
-) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF9F9F9)),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    painter = painterResource(iconRes),
-                    contentDescription = null,
-                    tint = Color(0xFF3ED47A)
+            // Header Description
+            item {
+                Text(
+                    text = "Learn how to use MelonVision AI to monitor your farm's health and maximize harvest value.",
+                    fontSize = 15.sp,
+                    color = Color.Gray,
+                    lineHeight = 22.sp
                 )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(text = title, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(text = description, fontSize = 14.sp, color = Color.Gray, lineHeight = 20.sp)
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                images.forEachIndexed { index, imageRes ->
-                    ImageWithLabel(
-                        imageRes = imageRes,
-                        isLowQuality = (index == lowQualityIndex),
-                        isHighQualityLabel = lowQualityLabelIsHigh,
-                        modifier = Modifier.weight(1f)
-                    )
+
+            // SECTION 1: LEAF DISEASE (Deep Learning)
+            item {
+                ThesisFeatureGuide(
+                    title = "Leaf Disease Detection",
+                    subtitle = "Powered by Deep Learning (CNN)",
+                    description = "Identify diseases like Downy Mildew or Anthracnose instantly to prevent crop loss.",
+                    iconRes = R.drawable.watermelon, // Replace with leaf icon
+                    steps = listOf(
+                        "Place the infected leaf in the center of the frame.",
+                        "Ensure natural daylight for better AI accuracy.",
+                        "Avoid blurry images; keep the camera steady."
+                    ),
+                    accentColor = Color(0xFF3ED47A)
+                )
+            }
+
+            // SECTION 2: FRUIT QUALITY (Regression ML)
+            item {
+                ThesisFeatureGuide(
+                    title = "Fruit Quality Evaluation",
+                    subtitle = "Regression Machine Learning",
+                    description = "Estimate ripeness and sugar levels (Brix value) based on external visual features.",
+                    iconRes = R.drawable.fruity,
+                    steps = listOf(
+                        "Capture the 'Ground Spot' (yellowish area) of the fruit.",
+                        "Ensure the tendril and stem are visible in the photo.",
+                        "The AI calculates quality based on color intensity."
+                    ),
+                    accentColor = Color(0xFFFF9800)
+                )
+            }
+
+            // Best Practices / Requirements
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F7F9)),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Info,
+                            contentDescription = null,
+                            tint = Color.DarkGray
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "For best results, use a clean camera lens and avoid using flash at night.",
+                            fontSize = 13.sp,
+                            color = Color.DarkGray
+                        )
+                    }
                 }
             }
         }
@@ -99,41 +133,78 @@ fun GuideSection(
 }
 
 @Composable
-fun ImageWithLabel(
-    imageRes: Int,
-    isLowQuality: Boolean,
-    isHighQualityLabel: Boolean,
-    modifier: Modifier = Modifier
+fun ThesisFeatureGuide(
+    title: String,
+    subtitle: String,
+    description: String,
+    iconRes: Int,
+    steps: List<String>,
+    accentColor: Color
 ) {
-    val labelText = if (isHighQualityLabel) "High Quality" else "Low Quality"
-    val labelColor = if (isHighQualityLabel) Color(0xFF3ED47A) else Color(0xFFFF6B6B)
-
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Image(
-            painter = painterResource(imageRes),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .aspectRatio(1f)
-                .clip(RoundedCornerShape(12.dp))
-        )
-        if (isLowQuality) {
-            Spacer(modifier = Modifier.height(8.dp))
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(labelColor)
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                    .size(48.dp)
+                    .background(accentColor.copy(alpha = 0.1f), CircleShape),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = labelText,
-                    color = Color.White,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium
+                Icon(
+                    painter = painterResource(iconRes),
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier.size(28.dp)
                 )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(text = title, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text(text = subtitle, fontSize = 12.sp, color = accentColor, fontWeight = FontWeight.SemiBold)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = description,
+            fontSize = 14.sp,
+            color = Color.DarkGray,
+            lineHeight = 20.sp
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Steps Container
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFFF9F9F9), RoundedCornerShape(16.dp))
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            steps.forEachIndexed { index, step ->
+                Row(verticalAlignment = Alignment.Top) {
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .background(accentColor, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "${index + 1}",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = step,
+                        fontSize = 13.sp,
+                        color = Color(0xFF444444),
+                        lineHeight = 18.sp
+                    )
+                }
             }
         }
     }
@@ -142,5 +213,7 @@ fun ImageWithLabel(
 @Preview(showBackground = true)
 @Composable
 fun QualityGuideScreenPreview() {
-    QualityGuideScreen()
+    MaterialTheme {
+        QualityGuideScreen(rememberNavController())
+    }
 }

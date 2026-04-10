@@ -51,6 +51,14 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
 
+    val composeBom = platform("androidx.compose:compose-bom:2024.09.00")
+    implementation(composeBom)
+    androidTestImplementation(composeBom)
+
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.foundation:foundation") // Ensure this matches UI version
+    implementation("androidx.compose.material3:material3")
+
     implementation("androidx.navigation:navigation-compose:2.8.0-beta01")
     implementation("com.google.accompanist:accompanist-flowlayout:0.34.0")
 

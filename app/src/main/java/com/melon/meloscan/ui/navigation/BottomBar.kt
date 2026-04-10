@@ -10,23 +10,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import com.melon.meloscan.R
 
 @Composable
-fun AppBottomBar(currentScreen: String) {
+fun AppBottomBar(navController: NavController, currentScreen: String) {
     NavigationBar(containerColor = Color.White) {
         NavigationBarItem(
             selected = currentScreen == "Home",
             onClick = { /* TODO: Navigate to Home */ },
             icon = { Icon(painterResource(R.drawable.ic_home), contentDescription = "Home") },
             label = { Text("Home") },
-            modifier = Modifier.size(28.dp)
-        )
-        NavigationBarItem(
-            selected = currentScreen == "Scan",
-            onClick = { /* TODO: Navigate to Scan */ },
-            icon = { Icon(painterResource(R.drawable.ic_scnner), contentDescription = "Scan") },
-            label = { Text("Scan") },
             modifier = Modifier.size(28.dp)
         )
         NavigationBarItem(
