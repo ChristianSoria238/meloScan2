@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -55,8 +57,8 @@ fun HomeScreen(navController: NavController) {
                     actions = {
                         IconButton(onClick = { navController.navigate("about") }) {
                             Icon(
-                                painter = painterResource(R.drawable.settings),
-                                contentDescription = "Settings",
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "About",
                                 modifier = Modifier.size(24.dp)
                             )
                         }

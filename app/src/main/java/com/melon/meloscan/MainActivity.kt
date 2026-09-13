@@ -10,15 +10,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.melon.meloscan.ui.screens.HomeScreen
-import com.melon.meloscan.ui.screens.SplashScreen
+import com.melon.meloscan.ui.screens.*
 import com.melon.meloscan.ui.theme.MeloScanTheme
-import com.melon.meloscan.ui.screens.AboutScreen
-import com.melon.meloscan.ui.screens.AnalyzingScreen
-import com.melon.meloscan.ui.screens.LibraryScreen
-import com.melon.meloscan.ui.screens.GuideScreen
-import com.melon.meloscan.ui.screens.ScanResultScreen
-import com.melon.meloscan.ui.screens.ScanScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,7 +58,7 @@ fun AppNavigation() {
         }
 
         composable("library_diseases_list") {
-            com.melon.meloscan.ui.screens.LeafDiseasesListScreen(navController = navController)
+            LeafDiseasesListScreen(navController = navController)
         }
 
         composable(
@@ -73,11 +66,11 @@ fun AppNavigation() {
             arguments = listOf(navArgument("name") { type = NavType.StringType })
         ) { backStackEntry ->
             val name = backStackEntry.arguments?.getString("name") ?: ""
-            com.melon.meloscan.ui.screens.LeafDiseaseDetailScreen(navController = navController, diseaseName = name)
+            LeafDiseaseDetailScreen(navController = navController, diseaseName = name)
         }
 
         composable("library_medicines_list") {
-            com.melon.meloscan.ui.screens.MedicinesListScreen(navController = navController)
+            MedicinesListScreen(navController = navController)
         }
 
         composable(
@@ -85,7 +78,7 @@ fun AppNavigation() {
             arguments = listOf(navArgument("name") { type = NavType.StringType })
         ) { backStackEntry ->
             val name = backStackEntry.arguments?.getString("name") ?: ""
-            com.melon.meloscan.ui.screens.MedicineDetailScreen(navController = navController, medicineName = name)
+            MedicineDetailScreen(navController = navController, medicineName = name)
         }
 
         composable("guide") {
