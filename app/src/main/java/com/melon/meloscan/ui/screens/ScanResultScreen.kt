@@ -18,17 +18,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import com.melon.meloscan.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ScanResultScreen() {
+fun ScanResultScreen(
+    navController: NavController,
+    scanType: String,
+    result: String,
+    confidence: Int,
+    medicine: String?
+) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Scan Result", fontWeight = FontWeight.Bold) },
+                title = { Text(if (scanType == "Leaf Disease") "Disease Detection" else "Quality Evaluation", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = { /* TODO: Navigate back */ }) {
+                    IconButton(onClick = { navController.popBackStack() }) {
                         Icon(painterResource(R.drawable.back), "Back") 
                     }
                 },
@@ -53,53 +61,76 @@ fun ScanResultScreen() {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Image(
-                        painter = painterResource(id = R.drawable.ic_launcher_background),
+                        painter = painterResource(id = if (scanType == "Leaf Disease") R.drawable.watermelon else R.drawable.fruity),
                         contentDescription = "Scanned watermelon",
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(250.dp)
-                            .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
-                        contentScale = ContentScale.Crop
+                            .height(220.dp)
+                            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
+                        contentScale = ContentScale.Fit
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        // Quality Tag
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFF3ED47A))
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Text("High Quality", color = Color.White, fontWeight = FontWeight.Medium)
-                        }
+                    // Result Title
+                    Text(
+                        text = result,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (result.contains("Low") || result.contains("Disease")) Color(0xFFD32F2F) else Color(0xFF388E3C)
+                    )
 
-                        Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                        // Confidence Score
+                    // Confidence Badge
+                    Surface(
+                        color = Color(0xFFF0F2F5),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
                         Text(
-                            text = "92% Confidence",
+                            text = "$confidence% Accuracy",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 22.sp
+                            color = Color.DarkGray
                         )
                     }
 
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp), thickness = 0.5.dp, color = Color.LightGray)
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
-                    Text(
-                        text = "This watermelon exhibits excellent texture, vibrant color, and a high sugar content, indicating peak ripeness and freshness.",
-                        color = Color.Gray,
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
+                    // Description / Recommendation Section
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
+                    ) {
+                        Text(
+                            text = if (scanType == "Leaf Disease") "Recommended Treatment:" else "Quality Analysis:",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = Color.Black
+                        )
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        Text(
+                            text = medicine ?: "No specific recommendation available.",
+                            color = Color.DarkGray,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(30.dp))
                 }
@@ -109,7 +140,11 @@ fun ScanResultScreen() {
 
             // Action Buttons
             Button(
-                onClick = { /* TODO: Scan another */ },
+                onClick = { 
+                    navController.navigate("home") {
+                        popUpTo("home") { inclusive = true }
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),
@@ -138,5 +173,11 @@ fun ScanResultScreen() {
 @Preview(showBackground = true)
 @Composable
 fun ScanResultScreenPreview() {
-    ScanResultScreen()
+    ScanResultScreen(
+        navController = rememberNavController(),
+        scanType = "Leaf Disease",
+        result = "Downy Mildew",
+        confidence = 92,
+        medicine = "Fungicide with Mancozeb"
+    )
 }

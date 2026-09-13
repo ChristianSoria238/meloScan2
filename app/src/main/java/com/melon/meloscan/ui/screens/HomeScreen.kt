@@ -42,7 +42,7 @@ fun HomeScreen(navController: NavController) {
                                 painter = painterResource(R.drawable.logo),
                                 contentDescription = "Logo",
                                 tint = GreenTint,
-                                modifier = Modifier.size(32.dp) // Adjusted size
+                                modifier = Modifier.size(24.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
@@ -53,7 +53,7 @@ fun HomeScreen(navController: NavController) {
                         }
                     },
                     actions = {
-                        IconButton(onClick = { /* TODO: Settings */ }) {
+                        IconButton(onClick = { navController.navigate("about") }) {
                             Icon(
                                 painter = painterResource(R.drawable.settings),
                                 contentDescription = "Settings",
@@ -119,35 +119,6 @@ fun HomeScreen(navController: NavController) {
                 onClick = { navController.navigate("fruit_scan") }
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Text(
-                text = "Resources",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                SmallFeatureItem(
-                    title = "Leaf Disease Medicine",
-                    icon = R.drawable.book,
-                    modifier = Modifier.weight(1f),
-                    onClick = { navController.navigate("guide") }
-                )
-                SmallFeatureItem(
-                    title = "Quality Features Guide",
-                    icon = R.drawable.book,
-                    modifier = Modifier.weight(1f),
-                    onClick = { navController.navigate("history") }
-                )
-               
-            }
-
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
@@ -201,7 +172,7 @@ fun ServiceCard(
                     Image(
                         painter = painterResource(iconRes),
                         contentDescription = null,
-                        modifier = Modifier.size(50.dp),
+                        modifier = Modifier.size(45.dp),
                         contentScale = ContentScale.Fit
                     )
                 }
@@ -234,37 +205,6 @@ fun ServiceCard(
                 }
             }
         }
-    }
-}
-
-@Composable
-fun SmallFeatureItem(
-    title: String,
-    icon: Int,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(LightGray)
-            .clickable { onClick() }
-            .padding(16.dp), // Increased padding for better touch target
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = null,
-            modifier = Modifier.size(20.dp),
-            tint = Color.DarkGray
-        )
-        Spacer(modifier = Modifier.width(10.dp))
-        Text(
-            text = title,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            color = Color.DarkGray
-        )
     }
 }
 

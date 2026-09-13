@@ -6,14 +6,12 @@ plugins {
 
 android {
     namespace = "com.melon.meloscan"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.melon.meloscan"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -50,28 +48,29 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation("androidx.compose.foundation:foundation")
 
-    val composeBom = platform("androidx.compose:compose-bom:2024.09.00")
-    implementation(composeBom)
-    androidTestImplementation(composeBom)
-
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.foundation:foundation") // Ensure this matches UI version
-    implementation("androidx.compose.material3:material3")
-
-    implementation("androidx.navigation:navigation-compose:2.8.0-beta01")
+    implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("com.google.accompanist:accompanist-flowlayout:0.34.0")
 
+    // CameraX
+    val cameraxVersion = "1.4.1"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+    implementation("androidx.camera:camera-extensions:$cameraxVersion")
+
     // Supabase
-    implementation(platform("io.github.jan-tennert.supabase:bom:2.5.0"))
-    implementation("io.github.jan-tennert.supabase:postgrest-kt") // For database interactions
-    implementation("io.github.jan-tennert.supabase:gotrue-kt")   // For authentication (optional but good practice)
-    implementation("io.ktor:ktor-client-android:2.3.11")         // Ktor client for Android
+    implementation(platform("io.github.jan-tennert.supabase:bom:2.6.1"))
+    implementation("io.github.jan-tennert.supabase:postgrest-kt")
+    implementation("io.github.jan-tennert.supabase:gotrue-kt")
+    implementation("io.ktor:ktor-client-android:2.3.12")
 
     // ViewModel and LiveData for state management
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.1")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.1")
-    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    implementation("io.coil-kt:coil-compose:2.7.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
