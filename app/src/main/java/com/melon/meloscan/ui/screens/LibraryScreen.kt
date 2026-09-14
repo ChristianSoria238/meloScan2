@@ -567,7 +567,7 @@ fun LibraryScreen(navController: NavController) {
                 LibraryCard(
                     title = "Leaf Diseases",
                     subtitle = "Browse common watermelon leaf diseases",
-                    iconRes = R.drawable.watermelon,
+                    iconRes = R.drawable.leaflogo,
                     onClick = { navController.navigate("library_diseases_list") }
                 )
                 Spacer(modifier = Modifier.height(16.dp))
@@ -577,7 +577,7 @@ fun LibraryScreen(navController: NavController) {
                 LibraryCard(
                     title = "Medicines",
                     subtitle = "Treatment and management options",
-                    iconRes = R.drawable.book,
+                    iconRes = R.drawable.medlogo,
                     onClick = { navController.navigate("library_medicines_list") }
                 )
                 Spacer(modifier = Modifier.height(32.dp))
