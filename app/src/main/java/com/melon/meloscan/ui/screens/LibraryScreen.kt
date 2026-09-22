@@ -1,5 +1,7 @@
 package com.melon.meloscan.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -33,10 +35,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import com.melon.meloscan.R
-import com.melon.meloscan.ui.navigation.AppBottomBar
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
 
-// --- Accurate Research Data ---
+import com.melon.meloscan.R
+import com.melon.meloscan.data.supabase.SupabaseClientProvider
+import com.melon.meloscan.model.Resource
+import com.melon.meloscan.ui.navigation.AppBottomBar
+import com.melon.meloscan.ui.viewmodel.ResourceViewModel
+import io.github.jan.supabase.storage.storage
+
+
+
+
+
+// ============================================================
+// ACCURATE RESEARCH DATA
+// DO NOT CHANGE - LOCAL DATA
+// ============================================================
 
 data class WatermelonDisease(
     val name: String,
@@ -63,6 +80,13 @@ data class Medicine(
     val localInfo: String,
     val imageRes: Int
 )
+
+
+// ============================================================
+// WATERMELON DISEASES
+// KEEPING EXACTLY AS PROVIDED
+// LOCAL DATA + LOCAL IMAGES
+// ============================================================
 
 val WatermelonDiseases = listOf(
     WatermelonDisease(
@@ -94,7 +118,7 @@ val WatermelonDiseases = listOf(
     WatermelonDisease(
         name = "Anthracnose",
         scientificName = "Colletotrichum orbiculare",
-        family = "Glomerellaceae",
+        family = "Pleosporaceae",
         description = "Common during warm, rainy seasons affecting all parts.",
         damage = "Small brown spots that create a 'shot-hole' appearance.",
         cause = "Fungal pathogen spread by rain and tools.",
@@ -248,9 +272,9 @@ val WatermelonDiseases = listOf(
         source = "https://extension.okstate.edu/fact-sheets/watermelon-diseases"
     ),
     WatermelonDisease(
-        name = "Gummy Stem Blight",
+        name = "Gummy Blight",
         scientificName = "Stagonosporopsis citrulli",
-        family = "Didymellaceae",
+        family = "Pleosporaceae",
         description = "Affects the entire plant. Recognizable by the amber-colored gummy ooze from stem lesions.",
         damage = "Brown, wrinkled spots on leaf margins. Stems develop dry cankers that leak amber-colored gummy exudate.",
         cause = "Fungus that survives in soil and crop residue.",
@@ -470,6 +494,13 @@ val WatermelonDiseases = listOf(
     )
 ).sortedBy { it.name }
 
+
+// ============================================================
+// MEDICINES
+// KEEPING EXACTLY AS PROVIDED
+// LOCAL DATA + LOCAL IMAGES
+// ============================================================
+
 val MedicinesData = listOf(
     Medicine(
         name = "Amistar Top",
@@ -539,143 +570,367 @@ val MedicinesData = listOf(
     )
 ).sortedBy { it.name }
 
-// --- UI Components ---
+// LEAF DISEASES = LOCAL
+// MEDICINES     = LOCAL
+// RESOURCES     = SUPABASE
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(navController: NavController) {
+
+    val resourceViewModel: ResourceViewModel = viewModel()
+
+    val resources by resourceViewModel.resources.collectAsState()
+
+    val isLoading by resourceViewModel.isLoading.collectAsState()
+
+    val error by resourceViewModel.error.collectAsState()
+
+    LaunchedEffect(Unit) {
+        resourceViewModel.loadResources()
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Library", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White)
+                title = {
+                    Text(
+                        "Library",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Color.White
+                )
             )
         },
         bottomBar = {
-            AppBottomBar(navController = navController, currentScreen = "Library")
+            AppBottomBar(
+                navController = navController,
+                currentScreen = "Library"
+            )
         },
         containerColor = Color.White
     ) { padding ->
-        // Use LazyColumn to make everything scrollable
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
             contentPadding = PaddingValues(20.dp)
         ) {
+            
+            // LEAF DISEASES
+
             item {
                 LibraryCard(
                     title = "Leaf Diseases",
                     subtitle = "Browse common watermelon leaf diseases",
                     iconRes = R.drawable.leaflogo,
-                    onClick = { navController.navigate("library_diseases_list") }
+                    onClick = {
+                        navController.navigate("library_diseases_list")
+                    }
                 )
+
                 Spacer(modifier = Modifier.height(16.dp))
             }
             
+            // MEDICINES
+
             item {
                 LibraryCard(
                     title = "Medicines",
                     subtitle = "Treatment and management options",
                     iconRes = R.drawable.medlogo,
-                    onClick = { navController.navigate("library_medicines_list") }
+                    onClick = {
+                        navController.navigate("library_medicines_list")
+                    }
                 )
+
                 Spacer(modifier = Modifier.height(32.dp))
             }
+            
+            // RESOURCES
 
             item {
-                Text("Resources", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    text = "Resources",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // Real Resources
-            item {
-                ResourceCard(
-                    title = "Watermelon Diseases - Purdue College of Agriculture",
-                    description = "Comprehensive guide on pakwan diseases in the Philippines by DA.",
-                    imageRes = R.drawable.resources1,
-                    link = "https://ag.purdue.edu/department/arge/swpap/watermelon-diseases.html"
-                )
-                Spacer(modifier = Modifier.height(12.dp))
+
+            // RESOURCE LOADING
+
+            if (isLoading) {
+
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 30.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+
+            } else if (error != null) {
+
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFFFF3E0)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(20.dp)
+                        ) {
+
+                            Text(
+                                text = "Unable to load resources",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Spacer(
+                                modifier = Modifier.height(8.dp)
+                            )
+
+                            Text(
+                                text = error ?: "Unknown error",
+                                fontSize = 13.sp,
+                                color = Color.Gray
+                            )
+
+                            Spacer(
+                                modifier = Modifier.height(12.dp)
+                            )
+
+                            Button(
+                                onClick = {
+                                    resourceViewModel.loadResources()
+                                }
+                            ) {
+                                Text("Try Again")
+                            }
+                        }
+                    }
+                }
+
+            } else if (resources.isEmpty()) {
+                // NO RESOURCES
+
+                item {
+                    Text(
+                        text = "No resources are currently available.",
+                        fontSize = 14.sp,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(
+                            vertical = 20.dp
+                        )
+                    )
+                }
+
+            } else {
+
+                // SUPABASE RESOURCES
+
+                items(
+                    items = resources,
+                    key = { resource -> resource.id }
+                ) { resource ->
+
+                    ResourceCard(
+                        resource = resource
+                    )
+
+                    Spacer(
+                        modifier = Modifier.height(12.dp)
+                    )
+                }
             }
 
             item {
-                ResourceCard(
-                    title = "Agribusiness How It Works",
-                    description = "Learn Watermelon Farming COMPLETE GUIDE from the Biggest Watermelon Farmer",
-                    imageRes = R.drawable.resources2,
-                    link = "https://youtu.be/TB4Mh83IwUM?si=sNNaoV7T25mxvgjC"
+                Spacer(
+                    modifier = Modifier.height(20.dp)
                 )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            item {
-                ResourceCard(
-                    title = "Watermelon agriculture in Bohol",
-                    description = "CAFA earn over P245K from watermelon production in Lila, Bohol",
-                    imageRes = R.drawable.resource3,
-                    link = "https://saad.da.gov.ph/cafa-earn-over-p245k-from-watermelon-production-in-lila-bohol/"
-                )
-                Spacer(modifier = Modifier.height(20.dp))
             }
         }
     }
 }
 
+// LIBRARY CARD
+
+
 @Composable
-fun LibraryCard(title: String, subtitle: String, iconRes: Int, onClick: () -> Unit) {
+fun LibraryCard(
+    title: String,
+    subtitle: String,
+    iconRes: Int,
+    onClick: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable {
+                onClick()
+            },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F7F9))
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFF5F7F9)
+        )
     ) {
+
         Row(
             modifier = Modifier.padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+
             Box(
                 modifier = Modifier
                     .size(50.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(
+                        RoundedCornerShape(12.dp)
+                    )
                     .background(Color.White),
                 contentAlignment = Alignment.Center
             ) {
-                Image(painter = painterResource(iconRes), contentDescription = null, modifier = Modifier.size(32.dp))
+
+                Image(
+                    painter = painterResource(iconRes),
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp)
+                )
             }
-            Spacer(modifier = Modifier.width(16.dp))
+
+            Spacer(
+                modifier = Modifier.width(16.dp)
+            )
+
             Column {
-                Text(text = title, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text(text = subtitle, fontSize = 13.sp, color = Color.Gray)
+
+                Text(
+                    text = title,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Text(
+                    text = subtitle,
+                    fontSize = 13.sp,
+                    color = Color.Gray
+                )
             }
         }
     }
 }
 
+// RESOURCE CARD
+
 @Composable
-fun ResourceCard(title: String, description: String, imageRes: Int, link: String) {
+fun ResourceCard(resource: Resource) {
+
+    val context = LocalContext.current
+
+    val imageUrl = if (resource.imagePath.isNullOrBlank()) {
+        null
+    } else {
+        SupabaseClientProvider.client
+            .storage
+            .from("resource-images")
+            .publicUrl(resource.imagePath!!)
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { /* TODO: Open Link */ },
+            .clickable {
+                val intent = Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse(resource.resourceUrl)
+                )
+
+                context.startActivity(intent)
+            },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFEEEEEE))
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        border = BorderStroke(
+            1.dp,
+            Color(0xFFEEEEEE)
+        )
     ) {
-        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Image(
-                painter = painterResource(imageRes),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(60.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
+
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            if (imageUrl != null) {
+
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = resource.title,
+                    modifier = Modifier
+                        .size(60.dp)
+                        .clip(
+                            RoundedCornerShape(8.dp)
+                        ),
+                    contentScale = ContentScale.Crop
+                )
+
+            } else {
+
+                Box(
+                    modifier = Modifier
+                        .size(60.dp)
+                        .clip(
+                            RoundedCornerShape(8.dp)
+                        )
+                        .background(
+                            Color(0xFFF5F5F5)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = Color.Gray
+                    )
+                }
+            }
+
+            Spacer(
+                modifier = Modifier.width(12.dp)
             )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3ED47A))
-                Text(text = description, fontSize = 12.sp, color = Color.Gray, lineHeight = 16.sp)
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+
+                Text(
+                    text = resource.title,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF3ED47A)
+                )
+
+                Text(
+                    text = resource.description,
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    lineHeight = 16.sp
+                )
+
                 Text(
                     text = "Visit Resource",
                     fontSize = 11.sp,
@@ -688,29 +943,48 @@ fun ResourceCard(title: String, description: String, imageRes: Int, link: String
     }
 }
 
-// --- Leaf Diseases List Screen ---
+// LEAF DISEASES LIST SCREEN
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LeafDiseasesListScreen(navController: NavController) {
-    var searchQuery by remember { mutableStateOf("") }
-    var isSearchActive by remember { mutableStateOf(false) }
+
+    var searchQuery by remember {
+        mutableStateOf("")
+    }
+
+    var isSearchActive by remember {
+        mutableStateOf(false)
+    }
 
     val filteredDiseases = if (searchQuery.isEmpty()) {
         WatermelonDiseases
     } else {
-        WatermelonDiseases.filter { it.name.contains(searchQuery, ignoreCase = true) }
+        WatermelonDiseases.filter {
+            it.name.contains(
+                searchQuery,
+                ignoreCase = true
+            )
+        }
     }
 
     Scaffold(
         topBar = {
+
             TopAppBar(
+
                 title = {
+
                     if (isSearchActive) {
+
                         TextField(
                             value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            placeholder = { Text("Search diseases...") },
+                            onValueChange = {
+                                searchQuery = it
+                            },
+                            placeholder = {
+                                Text("Search diseases...")
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = Color.Transparent,
@@ -721,58 +995,119 @@ fun LeafDiseasesListScreen(navController: NavController) {
                             ),
                             singleLine = true
                         )
+
                     } else {
-                        Text("Leaf Diseases", fontWeight = FontWeight.Bold)
+
+                        Text(
+                            "Leaf Diseases",
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 },
+
                 navigationIcon = {
-                    IconButton(onClick = { 
-                        if (isSearchActive) {
-                            isSearchActive = false
-                            searchQuery = ""
-                        } else {
-                            navController.popBackStack() 
+
+                    IconButton(
+                        onClick = {
+
+                            if (isSearchActive) {
+
+                                isSearchActive = false
+                                searchQuery = ""
+
+                            } else {
+
+                                navController.popBackStack()
+                            }
                         }
-                    }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    ) {
+
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = "Back"
+                        )
                     }
                 },
+
                 actions = {
+
                     if (isSearchActive) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear search")
+
+                        IconButton(
+                            onClick = {
+                                searchQuery = ""
+                            }
+                        ) {
+
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Clear search"
+                            )
                         }
+
                     } else {
-                        IconButton(onClick = { isSearchActive = true }) {
-                            Icon(Icons.Default.Search, contentDescription = "Search")
+
+                        IconButton(
+                            onClick = {
+                                isSearchActive = true
+                            }
+                        ) {
+
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = "Search"
+                            )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.White
+                )
             )
         }
+
     ) { padding ->
+
         LazyColumn(
+
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .background(Color(0xFFF9F9F9)),
-            contentPadding = PaddingValues(bottom = 20.dp)
+
+            contentPadding = PaddingValues(
+                bottom = 20.dp
+            )
         ) {
+
             items(filteredDiseases) { disease ->
+
                 LibraryListItem(
                     name = disease.name,
                     subtitle = disease.scientificName,
                     category = disease.partAffected,
                     tag = disease.type,
                     imageRes = disease.imageRes,
-                    onClick = { navController.navigate("library_disease_detail?name=${disease.name}") }
+                    onClick = {
+                        navController.navigate(
+                            "library_disease_detail?name=${disease.name}"
+                        )
+                    }
                 )
-                HorizontalDivider(thickness = 0.5.dp, color = Color(0xFFEEEEEE))
+
+                HorizontalDivider(
+                    thickness = 0.5.dp,
+                    color = Color(0xFFEEEEEE)
+                )
             }
         }
     }
 }
+
+
+
+// LIBRARY LIST ITEM
 
 @Composable
 fun LibraryListItem(
@@ -783,120 +1118,264 @@ fun LibraryListItem(
     imageRes: Int,
     onClick: () -> Unit
 ) {
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.White)
-            .clickable { onClick() }
+            .clickable {
+                onClick()
+            }
             .padding(16.dp),
+
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = name, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+
+            Text(
+                text = name,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
+            )
+
             Text(
                 text = subtitle,
                 fontSize = 13.sp,
                 fontStyle = FontStyle.Italic,
                 color = Color.Gray,
-                modifier = Modifier.padding(vertical = 4.dp)
+                modifier = Modifier.padding(
+                    vertical = 4.dp
+                )
             )
+
             Row {
-                TagBadge(text = category, color = Color(0xFF4CAF50))
-                Spacer(modifier = Modifier.width(6.dp))
-                TagBadge(text = tag.uppercase(), color = Color.Black)
+
+                TagBadge(
+                    text = category,
+                    color = Color(0xFF4CAF50)
+                )
+
+                Spacer(
+                    modifier = Modifier.width(6.dp)
+                )
+
+                TagBadge(
+                    text = tag.uppercase(),
+                    color = Color.Black
+                )
             }
         }
-        Spacer(modifier = Modifier.width(12.dp))
+
+        Spacer(
+            modifier = Modifier.width(12.dp)
+        )
+
         Image(
             painter = painterResource(imageRes),
             contentDescription = null,
             modifier = Modifier
                 .size(75.dp)
-                .clip(RoundedCornerShape(8.dp)),
+                .clip(
+                    RoundedCornerShape(8.dp)
+                ),
             contentScale = ContentScale.Crop
         )
     }
 }
 
+
+// TAG BADGE
+
 @Composable
-fun TagBadge(text: String, color: Color) {
+fun TagBadge(
+    text: String,
+    color: Color
+) {
+
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(4.dp))
+            .clip(
+                RoundedCornerShape(4.dp)
+            )
             .background(color)
-            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .padding(
+                horizontal = 6.dp,
+                vertical = 2.dp
+            )
     ) {
-        Text(text = text, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+
+        Text(
+            text = text,
+            color = Color.White,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
-// --- Leaf Disease Detail Screen ---
+
+// LEAF DISEASE DETAIL SCREEN
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LeafDiseaseDetailScreen(navController: NavController, diseaseName: String) {
-    val disease = WatermelonDiseases.find { it.name == diseaseName } ?: WatermelonDiseases[0]
+fun LeafDiseaseDetailScreen(
+    navController: NavController,
+    diseaseName: String
+) {
+
+    val disease =
+        WatermelonDiseases.find {
+            it.name == diseaseName
+        } ?: WatermelonDiseases[0]
 
     Scaffold(
+
         topBar = {
+
             TopAppBar(
-                title = { Text(disease.name.uppercase(), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32)) },
+
+                title = {
+
+                    Text(
+                        disease.name.uppercase(),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF2E7D32)
+                    )
+                },
+
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+
+                    IconButton(
+                        onClick = {
+                            navController.popBackStack()
+                        }
+                    ) {
+
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = "Back"
+                        )
                     }
                 }
             )
         }
+
     ) { padding ->
+
         LazyColumn(
+
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
                 .background(Color.White)
         ) {
+
             item {
+
                 Image(
-                    painter = painterResource(disease.imageRes),
+                    painter = painterResource(
+                        disease.imageRes
+                    ),
                     contentDescription = disease.name,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(250.dp),
                     contentScale = ContentScale.Crop
                 )
-                
-                Column(modifier = Modifier.padding(20.dp)) {
+
+                Column(
+                    modifier = Modifier.padding(20.dp)
+                ) {
+
                     Text(
                         text = "Image source: ${disease.source}",
                         fontSize = 11.sp,
                         color = Color.Gray,
                         textDecoration = TextDecoration.Underline,
-                        modifier = Modifier.padding(bottom = 20.dp)
+                        modifier = Modifier.padding(
+                            bottom = 20.dp
+                        )
                     )
 
-                    DetailInfoSection("COMMON NAME", disease.name)
-                    DetailInfoSection("SCIENTIFIC NAME", disease.scientificName, isItalic = true)
-                    DetailInfoSection("ORDER OR FAMILY", disease.family)
-                    DetailInfoSection("DESCRIPTION", disease.description)
-                    DetailInfoSection("DAMAGE CHARACTERISTICS", disease.damage)
-                    DetailInfoSection("CAUSE", disease.cause)
-                    DetailInfoSection("MANAGEMENT PRACTICE", disease.management)
-                    
-                    Spacer(modifier = Modifier.height(30.dp))
+                    DetailInfoSection(
+                        "COMMON NAME",
+                        disease.name
+                    )
+
+                    DetailInfoSection(
+                        "SCIENTIFIC NAME",
+                        disease.scientificName,
+                        isItalic = true
+                    )
+
+                    DetailInfoSection(
+                        "ORDER OR FAMILY",
+                        disease.family
+                    )
+
+                    DetailInfoSection(
+                        "DESCRIPTION",
+                        disease.description
+                    )
+
+                    DetailInfoSection(
+                        "DAMAGE CHARACTERISTICS",
+                        disease.damage
+                    )
+
+                    DetailInfoSection(
+                        "CAUSE",
+                        disease.cause
+                    )
+
+                    DetailInfoSection(
+                        "MANAGEMENT PRACTICE",
+                        disease.management
+                    )
+
+                    Spacer(
+                        modifier = Modifier.height(30.dp)
+                    )
                 }
             }
         }
     }
 }
 
+
+
+// DETAIL INFO SECTION
+
 @Composable
-fun DetailInfoSection(label: String, content: String, isItalic: Boolean = false) {
-    Column(modifier = Modifier.padding(bottom = 20.dp)) {
+fun DetailInfoSection(
+    label: String,
+    content: String,
+    isItalic: Boolean = false
+) {
+
+    Column(
+        modifier = Modifier.padding(
+            bottom = 20.dp
+        )
+    ) {
+
         Box(
             modifier = Modifier
-                .background(Color(0xFFE8F5E9), RoundedCornerShape(4.dp))
-                .padding(horizontal = 8.dp, vertical = 2.dp)
+                .background(
+                    Color(0xFFE8F5E9),
+                    RoundedCornerShape(4.dp)
+                )
+                .padding(
+                    horizontal = 8.dp,
+                    vertical = 2.dp
+                )
         ) {
+
             Text(
                 text = label,
                 color = Color(0xFF2E7D32),
@@ -904,41 +1383,81 @@ fun DetailInfoSection(label: String, content: String, isItalic: Boolean = false)
                 fontWeight = FontWeight.Bold
             )
         }
-        Spacer(modifier = Modifier.height(8.dp))
+
+        Spacer(
+            modifier = Modifier.height(8.dp)
+        )
+
         Text(
             text = content,
             fontSize = 15.sp,
             color = Color.Black,
-            fontStyle = if (isItalic) FontStyle.Italic else FontStyle.Normal,
+            fontStyle =
+                if (isItalic)
+                    FontStyle.Italic
+                else
+                    FontStyle.Normal,
             lineHeight = 22.sp
         )
-        HorizontalDivider(modifier = Modifier.padding(top = 16.dp), thickness = 0.5.dp, color = Color(0xFFEEEEEE))
+
+        HorizontalDivider(
+            modifier = Modifier.padding(
+                top = 16.dp
+            ),
+            thickness = 0.5.dp,
+            color = Color(0xFFEEEEEE)
+        )
     }
 }
 
-// --- Medicines List Screen ---
+
+
+// MEDICINES LIST SCREEN
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MedicinesListScreen(navController: NavController) {
-    var searchQuery by remember { mutableStateOf("") }
-    var isSearchActive by remember { mutableStateOf(false) }
+
+    var searchQuery by remember {
+        mutableStateOf("")
+    }
+
+    var isSearchActive by remember {
+        mutableStateOf(false)
+    }
 
     val filteredMedicines = if (searchQuery.isEmpty()) {
+
         MedicinesData
+
     } else {
-        MedicinesData.filter { it.name.contains(searchQuery, ignoreCase = true) }
+
+        MedicinesData.filter {
+            it.name.contains(
+                searchQuery,
+                ignoreCase = true
+            )
+        }
     }
 
     Scaffold(
+
         topBar = {
+
             TopAppBar(
+
                 title = {
+
                     if (isSearchActive) {
+
                         TextField(
                             value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            placeholder = { Text("Search medicines...") },
+                            onValueChange = {
+                                searchQuery = it
+                            },
+                            placeholder = {
+                                Text("Search medicines...")
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = Color.Transparent,
@@ -949,153 +1468,322 @@ fun MedicinesListScreen(navController: NavController) {
                             ),
                             singleLine = true
                         )
+
                     } else {
-                        Text("Medicines", fontWeight = FontWeight.Bold)
+
+                        Text(
+                            "Medicines",
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 },
+
                 navigationIcon = {
-                    IconButton(onClick = { 
-                        if (isSearchActive) {
-                            isSearchActive = false
-                            searchQuery = ""
-                        } else {
-                            navController.popBackStack() 
+
+                    IconButton(
+                        onClick = {
+
+                            if (isSearchActive) {
+
+                                isSearchActive = false
+                                searchQuery = ""
+
+                            } else {
+
+                                navController.popBackStack()
+                            }
                         }
-                    }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    ) {
+
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = "Back"
+                        )
                     }
                 },
+
                 actions = {
+
                     if (isSearchActive) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear search")
+
+                        IconButton(
+                            onClick = {
+                                searchQuery = ""
+                            }
+                        ) {
+
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Clear search"
+                            )
                         }
+
                     } else {
-                        IconButton(onClick = { isSearchActive = true }) {
-                            Icon(Icons.Default.Search, contentDescription = "Search")
+
+                        IconButton(
+                            onClick = {
+                                isSearchActive = true
+                            }
+                        ) {
+
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = "Search"
+                            )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.White
+                )
             )
         }
+
     ) { padding ->
+
         LazyColumn(
+
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .background(Color(0xFFF9F9F9))
         ) {
+
             items(filteredMedicines) { medicine ->
+
                 LibraryListItem(
                     name = medicine.name,
                     subtitle = medicine.description,
                     category = "MEDICINE",
                     tag = medicine.type,
                     imageRes = medicine.imageRes,
-                    onClick = { navController.navigate("library_medicine_detail?name=${medicine.name}") }
+                    onClick = {
+                        navController.navigate(
+                            "library_medicine_detail?name=${medicine.name}"
+                        )
+                    }
                 )
-                HorizontalDivider(thickness = 0.5.dp, color = Color(0xFFEEEEEE))
+
+                HorizontalDivider(
+                    thickness = 0.5.dp,
+                    color = Color(0xFFEEEEEE)
+                )
             }
         }
     }
 }
 
-// --- Medicine Detail Screen ---
 
+
+// MEDICINE DETAIL SCREEN
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MedicineDetailScreen(navController: NavController, medicineName: String) {
-    val medicine = MedicinesData.find { it.name == medicineName } ?: MedicinesData[0]
+fun MedicineDetailScreen(
+    navController: NavController,
+    medicineName: String
+) {
+
+    val medicine =
+        MedicinesData.find {
+            it.name == medicineName
+        } ?: MedicinesData[0]
 
     Scaffold(
+
         topBar = {
+
             TopAppBar(
-                title = { Text(medicine.name.uppercase(), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32)) },
+
+                title = {
+
+                    Text(
+                        medicine.name.uppercase(),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF2E7D32)
+                    )
+                },
+
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+
+                    IconButton(
+                        onClick = {
+                            navController.popBackStack()
+                        }
+                    ) {
+
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = "Back"
+                        )
                     }
                 }
             )
         }
+
     ) { padding ->
+
         LazyColumn(
+
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
                 .background(Color.White)
         ) {
+
             item {
+
                 Image(
-                    painter = painterResource(medicine.imageRes),
+                    painter = painterResource(
+                        medicine.imageRes
+                    ),
                     contentDescription = medicine.name,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(250.dp),
                     contentScale = ContentScale.Fit
                 )
-                
-                Column(modifier = Modifier.padding(20.dp)) {
-                    DetailInfoSection("NAME", medicine.name)
-                    DetailInfoSection("TYPE", medicine.type)
-                    DetailInfoSection("DESCRIPTION", medicine.description)
-                    DetailInfoSection("TARGET DISEASE", medicine.targetDisease)
-                    DetailInfoSection("APPLICATION PATTERN", medicine.application)
-                    DetailInfoSection("DOSE & DURATION", medicine.dose)
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    Text("WHERE TO BUY:", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = medicine.localInfo, fontSize = 14.sp, color = Color.DarkGray)
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
+
+                Column(
+                    modifier = Modifier.padding(20.dp)
+                ) {
+
+                    DetailInfoSection(
+                        "NAME",
+                        medicine.name
+                    )
+
+                    DetailInfoSection(
+                        "TYPE",
+                        medicine.type
+                    )
+
+                    DetailInfoSection(
+                        "DESCRIPTION",
+                        medicine.description
+                    )
+
+                    DetailInfoSection(
+                        "TARGET DISEASE",
+                        medicine.targetDisease
+                    )
+
+                    DetailInfoSection(
+                        "APPLICATION PATTERN",
+                        medicine.application
+                    )
+
+                    DetailInfoSection(
+                        "DOSE & DURATION",
+                        medicine.dose
+                    )
+
+                    Spacer(
+                        modifier = Modifier.height(16.dp)
+                    )
+
+                    Text(
+                        "WHERE TO BUY:",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+
+                    Spacer(
+                        modifier = Modifier.height(8.dp)
+                    )
+
+                    Text(
+                        text = medicine.localInfo,
+                        fontSize = 14.sp,
+                        color = Color.DarkGray
+                    )
+
+                    Spacer(
+                        modifier = Modifier.height(12.dp)
+                    )
+
                     Row {
-                        TextButton(onClick = { /* TODO */ }) {
-                            Text("Shopee Link", color = Color(0xFF3ED47A), textDecoration = TextDecoration.Underline)
+
+                        TextButton(
+                            onClick = {
+                                /* TODO */
+                            }
+                        ) {
+
+                            Text(
+                                "Shopee Link",
+                                color = Color(0xFF3ED47A),
+                                textDecoration =
+                                    TextDecoration.Underline
+                            )
                         }
-                        TextButton(onClick = { /* TODO */ }) {
-                            Text("Lazada Link", color = Color(0xFF3ED47A), textDecoration = TextDecoration.Underline)
+
+                        TextButton(
+                            onClick = {
+                                /* TODO */
+                            }
+                        ) {
+
+                            Text(
+                                "Lazada Link",
+                                color = Color(0xFF3ED47A),
+                                textDecoration =
+                                    TextDecoration.Underline
+                            )
                         }
                     }
-                    
-                    Spacer(modifier = Modifier.height(30.dp))
+
+                    Spacer(
+                        modifier = Modifier.height(30.dp)
+                    )
                 }
             }
         }
     }
 }
 
-// --- Previews ---
+
+// PREVIEWS
 
 @Preview(showBackground = true)
 @Composable
 fun LibraryScreenPreview() {
-    LibraryScreen(rememberNavController())
+    LibraryScreen(
+        rememberNavController()
+    )
 }
 
 @Preview(showBackground = true)
 @Composable
 fun LeafDiseasesListScreenPreview() {
-    LeafDiseasesListScreen(rememberNavController())
+    LeafDiseasesListScreen(
+        rememberNavController()
+    )
 }
 
 @Preview(showBackground = true)
 @Composable
 fun LeafDiseaseDetailScreenPreview() {
-    LeafDiseaseDetailScreen(rememberNavController(), "Downy Mildew")
+    LeafDiseaseDetailScreen(
+        rememberNavController(),
+        "Downy Mildew"
+    )
 }
 
 @Preview(showBackground = true)
 @Composable
 fun MedicinesListScreenPreview() {
-    MedicinesListScreen(rememberNavController())
+    MedicinesListScreen(
+        rememberNavController()
+    )
 }
 
 @Preview(showBackground = true)
 @Composable
 fun MedicineDetailScreenPreview() {
-    MedicineDetailScreen(rememberNavController(), "Mancozeb")
+    MedicineDetailScreen(
+        rememberNavController(),
+        "Mancozeb"
+    )
 }
