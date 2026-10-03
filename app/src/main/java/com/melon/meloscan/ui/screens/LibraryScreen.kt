@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,6 +39,13 @@ import androidx.navigation.compose.rememberNavController
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
+import androidx.compose.runtime.LaunchedEffect
+import com.melon.meloscan.utils.isInternetAvailable
+
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 
 import com.melon.meloscan.R
 import com.melon.meloscan.data.supabase.SupabaseClientProvider
@@ -45,15 +53,10 @@ import com.melon.meloscan.model.Resource
 import com.melon.meloscan.ui.navigation.AppBottomBar
 import com.melon.meloscan.ui.viewmodel.ResourceViewModel
 import io.github.jan.supabase.storage.storage
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 
-
-
-
-
-// ============================================================
-// ACCURATE RESEARCH DATA
-// DO NOT CHANGE - LOCAL DATA
-// ============================================================
 
 data class WatermelonDisease(
     val name: String,
@@ -81,25 +84,44 @@ data class Medicine(
     val imageRes: Int
 )
 
-
-// ============================================================
-// WATERMELON DISEASES
-// KEEPING EXACTLY AS PROVIDED
-// LOCAL DATA + LOCAL IMAGES
-// ============================================================
-
 val WatermelonDiseases = listOf(
     WatermelonDisease(
-        name = "Alternaria Leaf Spot",
-        scientificName = "Alternaria cucumerina",
+        name = "Anthracnose",
+        scientificName = "Colletotrichum orbiculare",
         family = "Pleosporaceae",
-        description = "A common fungal disease that affects the foliage of watermelons and other cucurbits, especially in warm, humid regions.",
-        damage = "Small, circular, water-soaked spots on older leaves that turn tan to brown. Large spots often show concentric rings (target-like). Severe infection leads to leaf curling and premature defoliation.",
-        cause = "Fungal pathogen spread by wind, rain, and infected crop debris.",
-        management = "Use disease-free seeds. Practice crop rotation. Apply protective fungicides like Mancozeb or Chlorothalonil.",
+        description = "Common during warm, rainy seasons affecting all parts.",
+        damage = "Small brown spots that create a 'shot-hole' appearance.",
+        cause = "Fungal pathogen spread by rain and tools.",
+        management = "Use disease-free seeds. 3-year rotation.",
+        type = "Fungal",
+        partAffected = "WHOLE",
+        imageRes = R.drawable.anthracnose_of_watermelon_7,
+        source = "https://philippine-agriculture.com/watermelon-pests"
+    ),
+    WatermelonDisease(
+        name = "Watermelon Mosaic Virus",
+        scientificName = "WMV (Potyvirus)",
+        family = "Potyviridae",
+        description = "A viral disease spread by aphids that causes stunting and severe leaf distortion.",
+        damage = "Mosaic patterns (light and dark green mottling), crinkling or narrowing of leaves, and stunted growth.",
+        cause = "Viral infection spread primarily by aphids (Aphis gossypii).",
+        management = "Control aphid populations. Use reflective silver mulches. Eliminate weed hosts.",
+        type = "Viral",
+        partAffected = "LEAF/FRUIT",
+        imageRes = R.drawable.mosaicvirus_1,
+        source = "https://extension.upenn.edu/watermelon-mosaic-virus"
+    ),
+    WatermelonDisease(
+        name = "Cucurbit Downy Mildew",
+        scientificName = "Pseudoperonospora cubensis",
+        family = "Peronosporaceae",
+        description = "A highly destructive oomycete disease affecting cucurbits including watermelon.",
+        damage = "Pale green to yellow angular spots on upper leaf surfaces. Purplish/grayish fuzzy growth on the underside during humid periods.",
+        cause = "Water mold pathogen spread by wind-borne spores. Thrives in cool, wet, and humid conditions.",
+        management = "Improve airflow, avoid overhead irrigation. Apply protectant and systemic fungicides.",
         type = "Fungal",
         partAffected = "LEAF",
-        imageRes = R.drawable.alternarialeaf,
+        imageRes = R.drawable.downey_mildew_1,
         source = "https://plantvillage.psu.edu/topics/watermelon/infos"
     ),
     WatermelonDisease(
@@ -115,19 +137,7 @@ val WatermelonDiseases = listOf(
         imageRes = R.drawable.angular_leaf_spot,
         source = "https://plantvillage.psu.edu/topics/watermelon/infos"
     ),
-    WatermelonDisease(
-        name = "Anthracnose",
-        scientificName = "Colletotrichum orbiculare",
-        family = "Pleosporaceae",
-        description = "Common during warm, rainy seasons affecting all parts.",
-        damage = "Small brown spots that create a 'shot-hole' appearance.",
-        cause = "Fungal pathogen spread by rain and tools.",
-        management = "Use disease-free seeds. 3-year rotation.",
-        type = "Fungal",
-        partAffected = "WHOLE",
-        imageRes = R.drawable.anthracnose_of_watermelon_7,
-        source = "https://philippine-agriculture.com/watermelon-pests"
-    ),
+    
     WatermelonDisease(
         name = "Bacterial Fruit Blotch",
         scientificName = "Acidovorax citrulli",
@@ -207,19 +217,6 @@ val WatermelonDiseases = listOf(
         source = "https://growhow.eastwestseed.com/crop-guide-template/watermelon"
     ),
     WatermelonDisease(
-        name = "Cucurbit Downy Mildew",
-        scientificName = "Pseudoperonospora cubensis",
-        family = "Peronosporaceae",
-        description = "A highly destructive oomycete disease affecting cucurbits including watermelon.",
-        damage = "Pale green to yellow angular spots on upper leaf surfaces. Purplish/grayish fuzzy growth on the underside during humid periods.",
-        cause = "Water mold pathogen spread by wind-borne spores. Thrives in cool, wet, and humid conditions.",
-        management = "Improve airflow, avoid overhead irrigation. Apply protectant and systemic fungicides.",
-        type = "Fungal",
-        partAffected = "LEAF",
-        imageRes = R.drawable.downey_mildew_1,
-        source = "https://plantvillage.psu.edu/topics/watermelon/infos"
-    ),
-    WatermelonDisease(
         name = "Damping-off",
         scientificName = "Pythium spp. / Rhizoctonia solani",
         family = "Pythiaceae / Ceratobasidiaceae",
@@ -281,7 +278,7 @@ val WatermelonDiseases = listOf(
         management = "Manage soil drainage to prevent waterlogging. Use certified clean seeds.",
         type = "Fungal",
         partAffected = "STEM/LEAF",
-        imageRes = R.drawable.watermelon,
+        imageRes = R.drawable.gummy_stem_blight_11,
         source = "https://plantpathology.ph/diseases/watermelon"
     ),
     WatermelonDisease(
@@ -453,19 +450,7 @@ val WatermelonDiseases = listOf(
         imageRes = R.drawable.target_cluster_4,
         source = "https://plantvillage.psu.edu/topics/watermelon/infos"
     ),
-    WatermelonDisease(
-        name = "Watermelon Mosaic Virus",
-        scientificName = "WMV (Potyvirus)",
-        family = "Potyviridae",
-        description = "A viral disease spread by aphids that causes stunting and severe leaf distortion.",
-        damage = "Mosaic patterns (light and dark green mottling), crinkling or narrowing of leaves, and stunted growth.",
-        cause = "Viral infection spread primarily by aphids (Aphis gossypii).",
-        management = "Control aphid populations. Use reflective silver mulches. Eliminate weed hosts.",
-        type = "Viral",
-        partAffected = "LEAF/FRUIT",
-        imageRes = R.drawable.mosaicvirus_1,
-        source = "https://extension.upenn.edu/watermelon-mosaic-virus"
-    ),
+
     WatermelonDisease(
         name = "White Mold",
         scientificName = "Sclerotinia sclerotiorum",
@@ -495,11 +480,7 @@ val WatermelonDiseases = listOf(
 ).sortedBy { it.name }
 
 
-// ============================================================
-// MEDICINES
-// KEEPING EXACTLY AS PROVIDED
-// LOCAL DATA + LOCAL IMAGES
-// ============================================================
+
 
 val MedicinesData = listOf(
     Medicine(
@@ -579,6 +560,8 @@ val MedicinesData = listOf(
 @Composable
 fun LibraryScreen(navController: NavController) {
 
+    val context = LocalContext.current
+
     val resourceViewModel: ResourceViewModel = viewModel()
 
     val resources by resourceViewModel.resources.collectAsState()
@@ -587,8 +570,36 @@ fun LibraryScreen(navController: NavController) {
 
     val error by resourceViewModel.error.collectAsState()
 
+    var isOnline by remember {
+        mutableStateOf(
+            isInternetAvailable(context)
+        )
+    }
+
+    var displayedResources by remember {
+        mutableStateOf(emptyList<Resource>())
+    }
+
+    var refreshKey by remember {
+        mutableIntStateOf(0)
+    }
+
+    LaunchedEffect(isLoading, resources, refreshKey) {
+
+        if (!isLoading && resources.isNotEmpty()) {
+            displayedResources = resources
+                .shuffled()
+                .take(5)
+        }
+    }
+
     LaunchedEffect(Unit) {
-        resourceViewModel.loadResources()
+
+        isOnline = isInternetAvailable(context)
+
+        if (isOnline) {
+            resourceViewModel.loadResources()
+        }
     }
 
     Scaffold(
@@ -654,34 +665,48 @@ fun LibraryScreen(navController: NavController) {
             // RESOURCES
 
             item {
-                Text(
-                    text = "Resources",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
 
-                Spacer(modifier = Modifier.height(12.dp))
-            }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
 
+                    Text(
+                        text = "Resources",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
 
-            // RESOURCE LOADING
+                    IconButton(
+                        onClick = {
 
-            if (isLoading) {
+                            isOnline = isInternetAvailable(context)
 
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 30.dp),
-                        contentAlignment = Alignment.Center
+                            if (isOnline && !isLoading) {
+                                refreshKey++
+                                resourceViewModel.loadResources()
+                            }
+                        }
                     ) {
-                        CircularProgressIndicator()
+
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Refresh Resources"
+                        )
                     }
                 }
 
-            } else if (error != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+// RESOURCE LOADING
+
+            if (!isOnline) {
+
+                // OFFLINE
 
                 item {
+
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
@@ -689,6 +714,80 @@ fun LibraryScreen(navController: NavController) {
                             containerColor = Color(0xFFFFF3E0)
                         )
                     ) {
+
+                        Column(
+                            modifier = Modifier.padding(20.dp)
+                        ) {
+
+                            Text(
+                                text = "No Internet connection",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Spacer(
+                                modifier = Modifier.height(6.dp)
+                            )
+
+                            Text(
+                                text = "Connect to the Internet to view the latest Resources.",
+                                fontSize = 13.sp,
+                                color = Color.Gray
+                            )
+
+                            Spacer(
+                                modifier = Modifier.height(12.dp)
+                            )
+
+                            Button(
+                                onClick = {
+
+                                    isOnline =
+                                        isInternetAvailable(context)
+
+                                    if (isOnline) {
+                                        resourceViewModel.loadResources()
+                                    }
+                                }
+                            ) {
+
+                                Text("Try Again")
+                            }
+                        }
+                    }
+                }
+
+            } else if (isLoading) {
+
+                // LOADING
+
+                item {
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 30.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+
+                        CircularProgressIndicator()
+                    }
+                }
+
+            } else if (error != null) {
+
+                // SUPABASE ERROR
+
+                item {
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFFFF3E0)
+                        )
+                    ) {
+
                         Column(
                             modifier = Modifier.padding(20.dp)
                         ) {
@@ -700,11 +799,11 @@ fun LibraryScreen(navController: NavController) {
                             )
 
                             Spacer(
-                                modifier = Modifier.height(8.dp)
+                                modifier = Modifier.height(6.dp)
                             )
 
                             Text(
-                                text = error ?: "Unknown error",
+                                text = "The resources could not be loaded. Please try again.",
                                 fontSize = 13.sp,
                                 color = Color.Gray
                             )
@@ -715,9 +814,16 @@ fun LibraryScreen(navController: NavController) {
 
                             Button(
                                 onClick = {
-                                    resourceViewModel.loadResources()
+
+                                    isOnline =
+                                        isInternetAvailable(context)
+
+                                    if (isOnline) {
+                                        resourceViewModel.loadResources()
+                                    }
                                 }
                             ) {
+
                                 Text("Try Again")
                             }
                         }
@@ -725,9 +831,11 @@ fun LibraryScreen(navController: NavController) {
                 }
 
             } else if (resources.isEmpty()) {
+
                 // NO RESOURCES
 
                 item {
+
                     Text(
                         text = "No resources are currently available.",
                         fontSize = 14.sp,
@@ -743,7 +851,7 @@ fun LibraryScreen(navController: NavController) {
                 // SUPABASE RESOURCES
 
                 items(
-                    items = resources,
+                    items = displayedResources,
                     key = { resource -> resource.id }
                 ) { resource ->
 
@@ -756,15 +864,11 @@ fun LibraryScreen(navController: NavController) {
                     )
                 }
             }
-
-            item {
-                Spacer(
-                    modifier = Modifier.height(20.dp)
-                )
-            }
         }
     }
 }
+
+// LIBRARY CARD
 
 // LIBRARY CARD
 
