@@ -65,7 +65,10 @@ android {
     sourceSets {
         getByName("main") {
             assets {
-                srcDirs("src\\main\\assets", "src\\main\\assets\\test_images")
+                srcDirs("src\\main\\assets", "src\\main\\assets\\test_images",
+                    "src\\main\\assets",
+                    "src\\main\\assets\\2"
+                )
             }
         }
     }

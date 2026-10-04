@@ -1,6 +1,8 @@
 package com.melon.meloscan.ui.screens
 
+import android.graphics.BitmapFactory
 import android.net.Uri
+import android.util.Log
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -32,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -41,7 +42,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import kotlinx.coroutines.delay
+import com.melon.meloscan.ml.YOLO11mLiteRTDetector
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun AnalyzingScreen(
@@ -50,6 +52,7 @@ fun AnalyzingScreen(
     imageUri: String?
 ) {
     val isLeafDisease = scanType == "Leaf Disease"
+    val context = LocalContext.current
 
     val image = remember(imageUri) {
         imageUri?.let {
@@ -83,41 +86,259 @@ fun AnalyzingScreen(
     )
 
     /*
-     * IMPORTANT:
+     * REAL YOLO11m INFERENCE
      *
-     * This is currently only a processing UI.
+     * Leaf Disease:
+     * image -> Bitmap -> YOLO11m LiteRT -> detection
      *
-     * We do NOT generate a fake disease,
-     * fake confidence, or fake quality result.
+     * If a supported disease is detected:
+     *     navigate to the normal result screen.
      *
-     * The real backend call will be inserted
-     * into this processing stage after the
-     * backend/API is ready.
+     * If nothing is detected:
+     *     navigate to the result screen with
+     *     "No Disease Detected".
+     *
+     * Fruit Quality is not connected to YOLO11m.
      */
-    LaunchedEffect(Unit) {
+    LaunchedEffect(imageUri, scanType) {
 
-        /*
-         * Temporary processing delay.
-         *
-         * This prevents the screen from immediately
-         * jumping away while we are developing the
-         * backend integration.
-         *
-         * It must NOT be treated as AI processing time.
-         */
-        delay(2500)
+        if (imageUri == null) {
+            Log.e(
+                "YOLO11mCaptureTest",
+                "Image URI is null."
+            )
+            return@LaunchedEffect
+        }
 
-        /*
-         * DO NOT generate a fake result here.
-         *
-         * Backend integration will be added next.
-         */
+        if (!isLeafDisease) {
+            Log.d(
+                "YOLO11mCaptureTest",
+                "Fruit Quality is not connected to YOLO11m."
+            )
+            return@LaunchedEffect
+        }
+
+        var bitmap: android.graphics.Bitmap? = null
+        var detector: YOLO11mLiteRTDetector? = null
+
+        try {
+
+            val uri = Uri.parse(imageUri)
+
+            bitmap = context.contentResolver
+                .openInputStream(uri)
+                ?.use { inputStream ->
+                    BitmapFactory.decodeStream(inputStream)
+                }
+
+            if (bitmap == null) {
+
+                Log.e(
+                    "YOLO11mCaptureTest",
+                    "Unable to decode captured image."
+                )
+
+                return@LaunchedEffect
+            }
+
+            Log.d(
+                "YOLO11mCaptureTest",
+                "Captured image size: " +
+                        "${bitmap.width} x ${bitmap.height}"
+            )
+
+            /*
+             * Create the real YOLO11m LiteRT detector.
+             */
+            detector = YOLO11mLiteRTDetector(context)
+
+            /*
+             * Run inference.
+             */
+            val detections = detector.detect(bitmap)
+
+            Log.d(
+                "YOLO11mCaptureTest",
+                "Number of detections: ${detections.size}"
+            )
+
+            /*
+             * Log every detection for testing.
+             */
+            detections.forEachIndexed { index, detection ->
+
+                Log.d(
+                    "YOLO11mCaptureTest",
+                    "Detection #${index + 1}: " +
+                            "class=${detection.className}, " +
+                            "confidence=${detection.confidence}, " +
+                            "box=${detection.boundingBox}"
+                )
+            }
+
+            /*
+             * ================================================================
+             * DISEASE DETECTED
+             * ================================================================
+             */
+            if (detections.isNotEmpty()) {
+
+                val bestDetection =
+                    detections.maxByOrNull {
+                        it.confidence
+                    }
+
+                if (bestDetection != null) {
+
+                    /*
+                     * Convert:
+                     *
+                     * anthracnose
+                     *       ↓
+                     * Anthracnose
+                     *
+                     * downy_mildew
+                     *       ↓
+                     * Downy Mildew
+                     */
+                    val resultName =
+                        bestDetection.className
+                            .replace("_", " ")
+                            .split(" ")
+                            .joinToString(" ") { word ->
+                                word.replaceFirstChar { char ->
+                                    char.uppercase()
+                                }
+                            }
+
+                    val confidencePercent =
+                        (bestDetection.confidence * 100)
+                            .toInt()
+
+                    Log.d(
+                        "YOLO11mCaptureTest",
+                        "Best detection: " +
+                                "class=$resultName, " +
+                                "confidence=$confidencePercent%"
+                    )
+
+                    val encodedType =
+                        Uri.encode(scanType)
+
+                    val encodedResult =
+                        Uri.encode(resultName)
+
+                    val encodedMedicine =
+                        Uri.encode(
+                            "No specific recommendation available."
+                        )
+
+                    val encodedImageUri =
+                        Uri.encode(imageUri)
+
+                    /*
+                     * Navigate to the normal result screen.
+                     */
+                    navController.navigate(
+                        "result?" +
+                                "type=$encodedType" +
+                                "&result=$encodedResult" +
+                                "&confidence=$confidencePercent" +
+                                "&medicine=$encodedMedicine" +
+                                "&imageUri=$encodedImageUri"
+                    )
+                }
+
+            } else {
+
+                /*
+                 * ============================================================
+                 * NO DISEASE DETECTED
+                 * ============================================================
+                 *
+                 * IMPORTANT:
+                 *
+                 * Previously this only logged the message, which caused
+                 * AnalyzingScreen to remain visible forever.
+                 *
+                 * Now we navigate to the result screen and let
+                 * ScanResultScreen display:
+                 *
+                 * "No Disease Detected"
+                 *
+                 * together with the captured image and instructions
+                 * for taking a better image.
+                 */
+
+                Log.d(
+                    "YOLO11mCaptureTest",
+                    "No supported disease detected."
+                )
+
+                val encodedType =
+                    Uri.encode(scanType)
+
+                val encodedResult =
+                    Uri.encode("No Disease Detected")
+
+                val encodedMedicine =
+                    Uri.encode(
+                        "The system could not identify a supported " +
+                                "watermelon leaf disease in this image."
+                    )
+
+                val encodedImageUri =
+                    Uri.encode(imageUri)
+
+                /*
+                 * Confidence is 0 because no disease was detected.
+                 */
+                navController.navigate(
+                    "result?" +
+                            "type=$encodedType" +
+                            "&result=$encodedResult" +
+                            "&confidence=0" +
+                            "&medicine=$encodedMedicine" +
+                            "&imageUri=$encodedImageUri"
+                )
+            }
+
+        } catch (e: Exception) {
+
+            /*
+             * Keep the actual error in Logcat.
+             *
+             * We do NOT create a fake disease result.
+             */
+            Log.e(
+                "YOLO11mCaptureTest",
+                "YOLO11m inference failed.",
+                e
+            )
+
+        } finally {
+
+            /*
+             * Release the detector and bitmap.
+             */
+            detector?.close()
+
+            bitmap?.recycle()
+        }
     }
+
+    /*
+     * ========================================================================
+     * ANALYZING SCREEN UI
+     * ========================================================================
+     */
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF7F9F7))
+            .background(
+                Color(0xFFF7F9F7)
+            )
     ) {
 
         /*
@@ -131,7 +352,8 @@ fun AnalyzingScreen(
                     start = 24.dp,
                     end = 24.dp
                 ),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment =
+                Alignment.CenterHorizontally
         ) {
 
             Text(
@@ -172,7 +394,9 @@ fun AnalyzingScreen(
                 .clip(
                     RoundedCornerShape(24.dp)
                 )
-                .background(Color(0xFFE8ECE8))
+                .background(
+                    Color(0xFFE8ECE8)
+                )
                 .border(
                     width = 1.dp,
                     color = Color(0xFFD8DED8),
@@ -221,9 +445,6 @@ fun AnalyzingScreen(
 
             /*
              * DARK OVERLAY
-             *
-             * Keeps the processing indicator readable
-             * over the image.
              */
             Box(
                 modifier = Modifier
@@ -247,7 +468,8 @@ fun AnalyzingScreen(
                             alpha = 0.58f
                         )
                     ),
-                contentAlignment = Alignment.Center
+                contentAlignment =
+                    Alignment.Center
             ) {
 
                 CircularProgressIndicator(
@@ -264,7 +486,9 @@ fun AnalyzingScreen(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 22.dp)
+                    .padding(
+                        bottom = 22.dp
+                    )
                     .clip(
                         RoundedCornerShape(50.dp)
                     )
@@ -304,7 +528,8 @@ fun AnalyzingScreen(
                     end = 28.dp,
                     bottom = 38.dp
                 ),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment =
+                Alignment.CenterHorizontally
         ) {
 
             Text(

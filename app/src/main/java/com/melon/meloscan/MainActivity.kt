@@ -12,6 +12,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.melon.meloscan.ui.screens.*
 import com.melon.meloscan.ui.theme.MeloScanTheme
+import android.graphics.BitmapFactory
+import android.util.Log
+import com.melon.meloscan.ml.YOLO11mLiteRTDetector
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -101,27 +105,53 @@ fun AppNavigation() {
         }
 
         composable(
-            route = "result?type={type}&result={result}&confidence={confidence}&medicine={medicine}",
+            route = "result?type={type}&result={result}&confidence={confidence}&medicine={medicine}&imageUri={imageUri}",
             arguments = listOf(
-                navArgument("type") { type = NavType.StringType },
-                navArgument("result") { type = NavType.StringType },
-                navArgument("confidence") { type = NavType.IntType },
-                navArgument("medicine") { 
+                navArgument("type") {
                     type = NavType.StringType
-                    nullable = true 
+                },
+                navArgument("result") {
+                    type = NavType.StringType
+                },
+                navArgument("confidence") {
+                    type = NavType.IntType
+                },
+                navArgument("medicine") {
+                    type = NavType.StringType
+                    nullable = true
+                },
+                navArgument("imageUri") {
+                    type = NavType.StringType
+                    nullable = true
                 }
             )
         ) { backStackEntry ->
-            val type = backStackEntry.arguments?.getString("type") ?: "Leaf Disease"
-            val result = backStackEntry.arguments?.getString("result") ?: "Unknown"
-            val confidence = backStackEntry.arguments?.getInt("confidence") ?: 0
-            val medicine = backStackEntry.arguments?.getString("medicine")
+
+            val type =
+                backStackEntry.arguments?.getString("type")
+                    ?: "Leaf Disease"
+
+            val result =
+                backStackEntry.arguments?.getString("result")
+                    ?: "Unknown"
+
+            val confidence =
+                backStackEntry.arguments?.getInt("confidence")
+                    ?: 0
+
+            val medicine =
+                backStackEntry.arguments?.getString("medicine")
+
+            val imageUri =
+                backStackEntry.arguments?.getString("imageUri")
+
             ScanResultScreen(
                 navController = navController,
                 scanType = type,
                 result = result,
                 confidence = confidence,
-                medicine = medicine
+                medicine = medicine,
+                imageUri = imageUri
             )
         }
 

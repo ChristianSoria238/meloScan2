@@ -19,18 +19,25 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,10 +46,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -55,14 +64,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
-import com.melon.meloscan.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import androidx.compose.runtime.rememberCoroutineScope
 import java.io.File
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 
 @Composable
 fun ScanScreen(
@@ -75,17 +80,7 @@ fun ScanScreen(
 
     val isLeafDisease = scanType == "Leaf Disease"
 
-    val instructionText = if (isLeafDisease) {
-        "Position a watermelon leaf inside the frame"
-    } else {
-        "Position the watermelon fruit inside the frame"
-    }
-
-    val helperText = if (isLeafDisease) {
-        "Make sure the diseased leaf area is clearly visible and well lit."
-    } else {
-        "Capture the whole fruit so its color, shape, size, and stripe pattern are visible."
-    }
+    val scope = rememberCoroutineScope()
 
     var hasCameraPermission by remember {
         mutableStateOf(
@@ -104,18 +99,27 @@ fun ScanScreen(
         mutableStateOf<String?>(null)
     }
 
-    val scope = rememberCoroutineScope()
-
+    /*
+     * CAMERA PREVIEW
+     */
     val previewView = remember {
         PreviewView(context).apply {
-            scaleType = PreviewView.ScaleType.FILL_CENTER
-            implementationMode = PreviewView.ImplementationMode.PERFORMANCE
+            scaleType =
+                PreviewView.ScaleType.FILL_CENTER
+
+            implementationMode =
+                PreviewView.ImplementationMode.PERFORMANCE
         }
     }
 
+    /*
+     * IMAGE CAPTURE
+     */
     val imageCapture = remember {
         ImageCapture.Builder()
-            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+            .setCaptureMode(
+                ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY
+            )
             .build()
     }
 
@@ -123,22 +127,32 @@ fun ScanScreen(
         mutableStateOf<ProcessCameraProvider?>(null)
     }
 
+    /*
+     * CAMERA PERMISSION
+     */
     val cameraPermissionLauncher =
         rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.RequestPermission()
+            contract =
+                ActivityResultContracts.RequestPermission()
         ) { granted ->
+
             hasCameraPermission = granted
 
-            if (!granted) {
-                cameraError = "Camera permission is required to take a photo."
-            } else {
-                cameraError = null
-            }
+            cameraError =
+                if (granted) {
+                    null
+                } else {
+                    "Camera access is needed to scan."
+                }
         }
 
+    /*
+     * GALLERY PICKER
+     */
     val galleryLauncher =
         rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.PickVisualMedia()
+            contract =
+                ActivityResultContracts.PickVisualMedia()
         ) { uri: Uri? ->
 
             if (uri == null) {
@@ -148,78 +162,114 @@ fun ScanScreen(
             isCapturing = true
 
             scope.launch {
-                try {
-                    val cachedUri = copyUriToCache(
-                        context = context,
-                        sourceUri = uri
-                    )
 
-                    val encodedUri = Uri.encode(cachedUri.toString())
-                    val encodedType = Uri.encode(scanType)
+                try {
+
+                    val cachedUri =
+                        copyUriToCache(
+                            context = context,
+                            sourceUri = uri
+                        )
+
+                    val encodedUri =
+                        Uri.encode(
+                            cachedUri.toString()
+                        )
+
+                    val encodedType =
+                        Uri.encode(scanType)
 
                     navController.navigate(
                         "analyzing?type=$encodedType&uri=$encodedUri"
                     )
+
                 } catch (e: Exception) {
+
                     cameraError =
-                        "Unable to prepare the selected image. Please try again."
+                        "The selected photo could not be opened."
+
                 } finally {
+
                     isCapturing = false
                 }
             }
         }
 
     /*
-     * Ask for camera permission when the screen first opens.
+     * REQUEST CAMERA PERMISSION
      */
     LaunchedEffect(Unit) {
-        if (!hasCameraPermission && !isPreview) {
-            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+
+        if (
+            !hasCameraPermission &&
+            !isPreview
+        ) {
+            cameraPermissionLauncher.launch(
+                Manifest.permission.CAMERA
+            )
         }
     }
 
     /*
-     * Initialize CameraX only after permission has been granted.
+     * INITIALIZE CAMERAX
      */
     DisposableEffect(
         hasCameraPermission,
         lifecycleOwner,
         isPreview
     ) {
-        if (!hasCameraPermission || isPreview) {
+
+        if (
+            !hasCameraPermission ||
+            isPreview
+        ) {
+
             onDispose {
                 cameraProvider?.unbindAll()
             }
+
         } else {
+
             val cameraProviderFuture =
-                ProcessCameraProvider.getInstance(context)
+                ProcessCameraProvider.getInstance(
+                    context
+                )
 
             val executor =
-                ContextCompat.getMainExecutor(context)
+                ContextCompat.getMainExecutor(
+                    context
+                )
 
             val listener = Runnable {
+
                 try {
-                    val provider = cameraProviderFuture.get()
+
+                    val provider =
+                        cameraProviderFuture.get()
 
                     cameraProvider = provider
 
                     provider.unbindAll()
 
-                    val preview = Preview.Builder()
-                        .build()
-                        .also {
-                            it.setSurfaceProvider(
-                                previewView.surfaceProvider
-                            )
-                        }
+                    val preview =
+                        Preview.Builder()
+                            .build()
+                            .also {
+
+                                it.setSurfaceProvider(
+                                    previewView.surfaceProvider
+                                )
+                            }
+
+                    val rotation =
+                        previewView.display?.rotation
+                            ?: Surface.ROTATION_0
 
                     imageCapture.targetRotation =
-                        previewView.display?.rotation
-                            ?: Surface.ROTATION_0
+                        rotation
 
                     preview.targetRotation =
-                        previewView.display?.rotation
-                            ?: Surface.ROTATION_0
+                        rotation
 
                     val cameraSelector =
                         CameraSelector.DEFAULT_BACK_CAMERA
@@ -234,8 +284,10 @@ fun ScanScreen(
                     cameraError = null
 
                 } catch (e: Exception) {
+
                     cameraError =
-                        "Unable to start the camera on this device."
+                        "Unable to start the camera."
+
                 }
             }
 
@@ -250,6 +302,9 @@ fun ScanScreen(
         }
     }
 
+    /*
+     * MAIN SCREEN
+     */
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -259,28 +314,37 @@ fun ScanScreen(
         /*
          * CAMERA PREVIEW
          */
-        if (hasCameraPermission && !isPreview) {
+        if (
+            hasCameraPermission &&
+            !isPreview
+        ) {
 
             AndroidView(
                 factory = {
                     previewView
                 },
-                modifier = Modifier.fillMaxSize()
+                modifier =
+                    Modifier.fillMaxSize()
             )
+
         } else {
-            /*
-             * Android Studio Preview placeholder.
-             */
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFF111111)),
-                contentAlignment = Alignment.Center
+                    .background(
+                        Color(0xFF111111)
+                    ),
+                contentAlignment =
+                    Alignment.Center
             ) {
+
                 Text(
                     text = "Camera Preview",
                     color = Color.White,
-                    fontSize = 18.sp
+                    fontSize = 17.sp,
+                    fontWeight =
+                        FontWeight.SemiBold
                 )
             }
         }
@@ -291,11 +355,13 @@ fun ScanScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(180.dp)
+                .height(145.dp)
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color.Black.copy(alpha = 0.75f),
+                            Color.Black.copy(
+                                alpha = 0.72f
+                            ),
                             Color.Transparent
                         )
                     )
@@ -309,188 +375,183 @@ fun ScanScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(
-                    horizontal = 20.dp,
-                    vertical = 18.dp
+                    horizontal = 18.dp,
+                    vertical = 14.dp
                 ),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment =
+                Alignment.CenterVertically,
+            horizontalArrangement =
+                Arrangement.SpaceBetween
         ) {
 
             /*
-             * CLOSE BUTTON
+             * BACK BUTTON
              */
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(46.dp)
                     .clip(CircleShape)
                     .background(
-                        Color.Black.copy(alpha = 0.55f)
+                        Color.Black.copy(
+                            alpha = 0.45f
+                        )
                     )
-                    .clickable(enabled = !isCapturing) {
+                    .clickable(
+                        enabled = !isCapturing
+                    ) {
                         navController.popBackStack()
                     },
-                contentAlignment = Alignment.Center
+                contentAlignment =
+                    Alignment.Center
             ) {
-                Text(
-                    text = "×",
-                    color = Color.White,
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.Light
+
+                Icon(
+                    imageVector =
+                        Icons.Default.ArrowBack,
+                    contentDescription =
+                        "Back",
+                    tint = Color.White,
+                    modifier =
+                        Modifier.size(23.dp)
                 )
             }
 
             /*
              * TITLE
              */
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = if (isLeafDisease) {
-                        "Leaf Disease Detection"
+            Text(
+                text =
+                    if (isLeafDisease) {
+                        "Watermelon Leaf Disease"
                     } else {
-                        "Fruit Quality Evaluation"
+                        "Watermelon Fruit Quality"
                     },
-                    color = Color.White,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(
-                    modifier = Modifier.height(3.dp)
-                )
-
-                Text(
-                    text = "Camera",
-                    color = Color.White.copy(alpha = 0.75f),
-                    fontSize = 12.sp
-                )
-            }
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier =
+                    Modifier.weight(1f)
+            )
 
             /*
              * BALANCING SPACE
              */
             Spacer(
-                modifier = Modifier.size(44.dp)
+                modifier =
+                    Modifier.size(46.dp)
             )
         }
 
         /*
-         * CENTER SCANNING AREA
+         * SIMPLE INSTRUCTION
          */
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    top = 130.dp,
-                    bottom = 220.dp,
-                    start = 34.dp,
-                    end = 34.dp
-                ),
-            contentAlignment = Alignment.Center
+        Text(
+            text =
+                if (isLeafDisease) {
+                    "Place the leaf inside the frame"
+                } else {
+                    "Place the fruit inside the frame"
+                },
+            color = Color.White,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center,
+            modifier =
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(
+                        top = 88.dp,
+                        start = 24.dp,
+                        end = 24.dp
+                    )
+        )
+
+        /*
+         * RESPONSIVE CAMERA FRAME
+         *
+         * Only four L-shaped corners.
+         */
+        BoxWithConstraints(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(
+                        top = 145.dp,
+                        bottom =
+                            175.dp +
+                                    WindowInsets
+                                        .navigationBars
+                                        .asPaddingValues()
+                                        .calculateBottomPadding()
+                    ),
+            contentAlignment =
+                Alignment.Center
         ) {
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(
-                        if (isLeafDisease) {
-                            330.dp
-                        } else {
-                            280.dp
-                        }
-                    )
-                    .border(
-                        width = 2.dp,
-                        color = Color.White.copy(alpha = 0.9f),
-                        shape = RoundedCornerShape(28.dp)
-                    )
-            )
+            val frameWidth =
+                maxWidth * 0.84f
 
-            /*
-             * INNER CORNER GUIDES
-             */
+            val frameHeight =
+                if (isLeafDisease) {
+                    frameWidth * 0.92f
+                } else {
+                    frameWidth * 0.68f
+                }
+
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(
-                        if (isLeafDisease) {
-                            330.dp
-                        } else {
-                            280.dp
-                        }
-                    )
-                    .padding(2.dp)
+                modifier =
+                    Modifier
+                        .width(frameWidth)
+                        .height(frameHeight)
             ) {
 
+                /*
+                 * TOP LEFT
+                 */
                 ScanCorner(
-                    modifier = Modifier.align(
-                        Alignment.TopStart
-                    )
+                    modifier =
+                        Modifier.align(
+                            Alignment.TopStart
+                        )
                 )
 
+                /*
+                 * TOP RIGHT
+                 */
                 ScanCorner(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .rotate(90f)
+                    modifier =
+                        Modifier
+                            .align(
+                                Alignment.TopEnd
+                            )
+                            .rotate(90f)
                 )
 
+                /*
+                 * BOTTOM RIGHT
+                 */
                 ScanCorner(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .rotate(180f)
+                    modifier =
+                        Modifier
+                            .align(
+                                Alignment.BottomEnd
+                            )
+                            .rotate(180f)
                 )
 
+                /*
+                 * BOTTOM LEFT
+                 */
                 ScanCorner(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .rotate(270f)
+                    modifier =
+                        Modifier
+                            .align(
+                                Alignment.BottomStart
+                            )
+                            .rotate(270f)
                 )
             }
-        }
-
-        /*
-         * INSTRUCTION CARD
-         */
-        Column(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(
-                    top = 112.dp,
-                    start = 48.dp,
-                    end = 48.dp
-                )
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(
-                    Color.Black.copy(alpha = 0.58f)
-                )
-                .padding(
-                    horizontal = 18.dp,
-                    vertical = 13.dp
-                ),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-
-            Text(
-                text = instructionText,
-                color = Color.White,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(
-                modifier = Modifier.height(4.dp)
-            )
-
-            Text(
-                text = helperText,
-                color = Color.White.copy(alpha = 0.78f),
-                fontSize = 12.sp,
-                lineHeight = 17.sp,
-                textAlign = TextAlign.Center
-            )
         }
 
         /*
@@ -501,51 +562,89 @@ fun ScanScreen(
             Box(
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .padding(horizontal = 40.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(
-                        Color.Black.copy(alpha = 0.82f)
+                    .padding(
+                        horizontal = 28.dp
                     )
-                    .padding(20.dp)
+                    .clip(
+                        RoundedCornerShape(18.dp)
+                    )
+                    .background(
+                        Color.Black.copy(
+                            alpha = 0.88f
+                        )
+                    )
+                    .padding(
+                        horizontal = 22.dp,
+                        vertical = 20.dp
+                    )
             ) {
 
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment =
+                        Alignment.CenterHorizontally
                 ) {
 
                     Text(
-                        text = message,
+                        text = "Camera unavailable",
                         color = Color.White,
-                        fontSize = 14.sp,
-                        textAlign = TextAlign.Center
+                        fontSize = 17.sp,
+                        fontWeight =
+                            FontWeight.Bold,
+                        textAlign =
+                            TextAlign.Center
                     )
 
                     Spacer(
-                        modifier = Modifier.height(14.dp)
+                        modifier =
+                            Modifier.height(8.dp)
+                    )
+
+                    Text(
+                        text = message,
+                        color =
+                            Color.White.copy(
+                                alpha = 0.78f
+                            ),
+                        fontSize = 13.sp,
+                        textAlign =
+                            TextAlign.Center
                     )
 
                     if (!hasCameraPermission) {
 
+                        Spacer(
+                            modifier =
+                                Modifier.height(16.dp)
+                        )
+
                         Text(
                             text = "Allow Camera",
                             color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier
-                                .clip(
-                                    RoundedCornerShape(10.dp)
-                                )
-                                .background(
-                                    MaterialTheme.colorScheme.primary
-                                )
-                                .clickable {
-                                    cameraPermissionLauncher.launch(
-                                        Manifest.permission.CAMERA
+                            fontSize = 14.sp,
+                            fontWeight =
+                                FontWeight.Bold,
+                            modifier =
+                                Modifier
+                                    .clip(
+                                        RoundedCornerShape(
+                                            12.dp
+                                        )
                                     )
-                                }
-                                .padding(
-                                    horizontal = 20.dp,
-                                    vertical = 10.dp
-                                )
+                                    .background(
+                                        MaterialTheme
+                                            .colorScheme
+                                            .primary
+                                    )
+                                    .clickable {
+                                        cameraPermissionLauncher
+                                            .launch(
+                                                Manifest.permission.CAMERA
+                                            )
+                                    }
+                                    .padding(
+                                        horizontal = 22.dp,
+                                        vertical = 12.dp
+                                    )
                         )
                     }
                 }
@@ -553,242 +652,393 @@ fun ScanScreen(
         }
 
         /*
-         * BOTTOM CONTROL AREA
+         * BOTTOM GRADIENT
          */
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(210.dp)
-                .align(Alignment.BottomCenter)
+                .height(185.dp)
+                .align(
+                    Alignment.BottomCenter
+                )
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
                             Color.Transparent,
-                            Color.Black.copy(alpha = 0.88f)
+                            Color.Black.copy(
+                                alpha = 0.90f
+                            )
                         )
                     )
                 )
         )
 
         /*
-         * BOTTOM INSTRUCTIONS + CONTROLS
+         * BOTTOM CONTROLS
+         *
+         * Gallery label is now directly
+         * underneath the Gallery icon.
+         *
+         * Tap to capture is directly
+         * underneath the capture button.
          */
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(
-                    start = 24.dp,
-                    end = 24.dp,
-                    bottom = 30.dp
-                ),
-            horizontalAlignment = Alignment.CenterHorizontally
+        Row(
+            modifier =
+                Modifier
+                    .align(
+                        Alignment.BottomCenter
+                    )
+                    .fillMaxWidth()
+                    .padding(
+                        bottom =
+                            10.dp +
+                                    WindowInsets
+                                        .navigationBars
+                                        .asPaddingValues()
+                                        .calculateBottomPadding()
+                    ),
+            verticalAlignment =
+                Alignment.Top,
+            horizontalArrangement =
+                Arrangement.Center
         ) {
 
-            Text(
-                text = if (isLeafDisease) {
-                    "Capture a clear image of the leaf"
-                } else {
-                    "Capture the whole watermelon fruit"
-                },
-                color = Color.White.copy(alpha = 0.82f),
-                fontSize = 13.sp,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(
-                modifier = Modifier.height(20.dp)
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceEvenly
+            /*
+             * GALLERY CONTROL
+             */
+            Column(
+                modifier =
+                    Modifier.width(58.dp),
+                horizontalAlignment =
+                    Alignment.CenterHorizontally
             ) {
 
                 /*
-                 * GALLERY BUTTON
+                 * GALLERY ICON
                  */
                 Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Color.White.copy(alpha = 0.16f)
-                        )
-                        .clickable(
-                            enabled = !isCapturing
-                        ) {
-                            galleryLauncher.launch(
-                                PickVisualMediaRequest(
-                                    ActivityResultContracts.PickVisualMedia.ImageOnly
+                    modifier =
+                        Modifier
+                            .size(58.dp)
+                            .clip(CircleShape)
+                            .background(
+                                Color.Black.copy(
+                                    alpha = 0.48f
                                 )
                             )
-                        },
-                    contentAlignment = Alignment.Center
+                            .border(
+                                width = 1.dp,
+                                color =
+                                    Color.White.copy(
+                                        alpha = 0.35f
+                                    ),
+                                shape =
+                                    CircleShape
+                            )
+                            .clickable(
+                                enabled =
+                                    !isCapturing
+                            ) {
+
+                                galleryLauncher.launch(
+                                    PickVisualMediaRequest(
+                                        ActivityResultContracts
+                                            .PickVisualMedia
+                                            .ImageOnly
+                                    )
+                                )
+                            },
+                    contentAlignment =
+                        Alignment.Center
                 ) {
 
                     Text(
                         text = "▣",
                         color = Color.White,
-                        fontSize = 24.sp
+                        fontSize = 25.sp,
+                        fontWeight =
+                            FontWeight.Bold
                     )
                 }
 
                 /*
-                 * MAIN SHUTTER BUTTON
+                 * GALLERY LABEL
+                 */
+                Spacer(
+                    modifier =
+                        Modifier.height(5.dp)
+                )
+
+                Text(
+                    text = "Gallery",
+                    color =
+                        Color.White.copy(
+                            alpha = 0.82f
+                        ),
+                    fontSize = 11.sp,
+                    fontWeight =
+                        FontWeight.Medium,
+                    textAlign =
+                        TextAlign.Center
+                )
+            }
+
+            /*
+             * SPACE BETWEEN GALLERY
+             * AND CAPTURE BUTTON
+             */
+            Spacer(
+                modifier =
+                    Modifier.width(48.dp)
+            )
+
+            /*
+             * CAPTURE CONTROL
+             */
+            Column(
+                horizontalAlignment =
+                    Alignment.CenterHorizontally
+            ) {
+
+                /*
+                 * CAPTURE BUTTON
                  */
                 Box(
-                    modifier = Modifier
-                        .size(82.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Color.White.copy(alpha = 0.22f)
-                        )
-                        .padding(7.dp)
-                        .clip(CircleShape)
-                        .background(Color.White)
-                        .clickable(
-                            enabled =
-                                hasCameraPermission &&
-                                        !isCapturing &&
-                                        cameraError == null
-                        ) {
-
-                            val capture =
-                                imageCapture
-
-                            isCapturing = true
-                            cameraError = null
-
-                            val photoFile =
-                                File.createTempFile(
-                                    "meloscan_capture_",
-                                    ".jpg",
-                                    context.cacheDir
+                    modifier =
+                        Modifier
+                            .size(86.dp)
+                            .clip(CircleShape)
+                            .background(
+                                Color.White.copy(
+                                    alpha = 0.25f
                                 )
-
-                            val outputOptions =
-                                ImageCapture.OutputFileOptions
-                                    .Builder(photoFile)
-                                    .build()
-
-                            capture.takePicture(
-                                outputOptions,
-                                ContextCompat.getMainExecutor(
-                                    context
-                                ),
-                                object :
-                                    ImageCapture.OnImageSavedCallback {
-
-                                    override fun onImageSaved(
-                                        output:
-                                        ImageCapture.OutputFileResults
-                                    ) {
-
-                                        val uri =
-                                            Uri.fromFile(
-                                                photoFile
-                                            )
-
-                                        val encodedUri =
-                                            Uri.encode(
-                                                uri.toString()
-                                            )
-
-                                        val encodedType =
-                                            Uri.encode(
-                                                scanType
-                                            )
-
-                                        isCapturing = false
-
-                                        navController.navigate(
-                                            "analyzing?type=$encodedType&uri=$encodedUri"
-                                        )
-                                    }
-
-                                    override fun onError(
-                                        exception:
-                                        ImageCaptureException
-                                    ) {
-
-                                        isCapturing = false
-
-                                        cameraError =
-                                            "Photo capture failed. Please try again."
-                                    }
-                                }
                             )
-                        },
-                    contentAlignment = Alignment.Center
+                            .border(
+                                width = 2.dp,
+                                color = Color.White,
+                                shape = CircleShape
+                            )
+                            .padding(7.dp)
+                            .clip(CircleShape)
+                            .background(
+                                MaterialTheme
+                                    .colorScheme
+                                    .primary
+                            )
+                            .clickable(
+                                enabled =
+                                    hasCameraPermission &&
+                                            !isCapturing &&
+                                            cameraError == null
+                            ) {
+
+                                val capture =
+                                    imageCapture
+
+                                isCapturing = true
+                                cameraError = null
+
+                                val photoFile =
+                                    File.createTempFile(
+                                        "meloscan_capture_",
+                                        ".jpg",
+                                        context.cacheDir
+                                    )
+
+                                val outputOptions =
+                                    ImageCapture
+                                        .OutputFileOptions
+                                        .Builder(
+                                            photoFile
+                                        )
+                                        .build()
+
+                                capture.takePicture(
+                                    outputOptions,
+                                    ContextCompat
+                                        .getMainExecutor(
+                                            context
+                                        ),
+                                    object :
+                                        ImageCapture
+                                        .OnImageSavedCallback {
+
+                                        override fun onImageSaved(
+                                            output:
+                                            ImageCapture
+                                            .OutputFileResults
+                                        ) {
+
+                                            val uri =
+                                                Uri.fromFile(
+                                                    photoFile
+                                                )
+
+                                            val encodedUri =
+                                                Uri.encode(
+                                                    uri.toString()
+                                                )
+
+                                            val encodedType =
+                                                Uri.encode(
+                                                    scanType
+                                                )
+
+                                            isCapturing =
+                                                false
+
+                                            navController
+                                                .navigate(
+                                                    "analyzing?" +
+                                                            "type=$encodedType" +
+                                                            "&uri=$encodedUri"
+                                                )
+                                        }
+
+                                        override fun onError(
+                                            exception:
+                                            ImageCaptureException
+                                        ) {
+
+                                            isCapturing =
+                                                false
+
+                                            cameraError =
+                                                "Photo capture failed. Please try again."
+                                        }
+                                    }
+                                )
+                            },
+                    contentAlignment =
+                        Alignment.Center
                 ) {
 
                     if (isCapturing) {
 
                         CircularProgressIndicator(
-                            modifier = Modifier.size(34.dp),
-                            strokeWidth = 3.dp
+                            modifier =
+                                Modifier.size(32.dp),
+                            strokeWidth = 3.dp,
+                            color = Color.White
                         )
 
                     } else {
 
                         Box(
-                            modifier = Modifier
-                                .size(62.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    MaterialTheme.colorScheme.primary
-                                )
+                            modifier =
+                                Modifier
+                                    .size(62.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        Color.White
+                                    )
                         )
                     }
                 }
 
                 /*
-                 * SECONDARY BALANCING SPACE
+                 * TAP TO CAPTURE LABEL
                  */
                 Spacer(
-                    modifier = Modifier.size(52.dp)
+                    modifier =
+                        Modifier.height(7.dp)
+                )
+
+                Text(
+                    text =
+                        if (isCapturing) {
+                            "Capturing..."
+                        } else {
+                            "Tap to capture"
+                        },
+                    color =
+                        Color.White.copy(
+                            alpha = 0.88f
+                        ),
+                    fontSize = 12.sp,
+                    fontWeight =
+                        FontWeight.Medium,
+                    textAlign =
+                        TextAlign.Center
                 )
             }
 
+            /*
+             * BALANCING SPACE
+             *
+             * Same width as Gallery control,
+             * keeping capture button centered.
+             */
             Spacer(
-                modifier = Modifier.height(10.dp)
-            )
-
-            Text(
-                text = "Gallery",
-                color = Color.White.copy(alpha = 0.65f),
-                fontSize = 11.sp
+                modifier =
+                    Modifier
+                        .width(58.dp)
             )
         }
     }
 }
 
 /*
- * Scanner corner guide.
+ * CAMERA FRAME CORNER
+ *
+ * Creates an L-shaped corner.
+ * There is no surrounding rectangle.
  */
 @Composable
 private fun ScanCorner(
     modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = modifier
-            .size(34.dp)
-            .border(
-                width = 4.dp,
-                color = Color.White,
-                shape = RoundedCornerShape(8.dp)
-            )
-    )
+        modifier =
+            modifier.size(42.dp)
+    ) {
+
+        /*
+         * VERTICAL LINE
+         */
+        Box(
+            modifier =
+                Modifier
+                    .width(4.dp)
+                    .height(30.dp)
+                    .align(
+                        Alignment.TopStart
+                    )
+                    .clip(
+                        RoundedCornerShape(
+                            topStart = 6.dp
+                        )
+                    )
+                    .background(
+                        Color.White
+                    )
+        )
+
+        /*
+         * HORIZONTAL LINE
+         */
+        Box(
+            modifier =
+                Modifier
+                    .width(30.dp)
+                    .height(4.dp)
+                    .align(
+                        Alignment.TopStart
+                    )
+                    .clip(
+                        RoundedCornerShape(
+                            topStart = 6.dp
+                        )
+                    )
+                    .background(
+                        Color.White
+                    )
+        )
+    }
 }
 
 /*
- * Copies a selected gallery image into the app cache.
- *
- * This gives both camera images and gallery images
- * the same app-controlled file format/location before
- * they are sent to the analyzing/backend stage.
+ * COPIES A GALLERY IMAGE INTO CACHE
  */
 private suspend fun copyUriToCache(
     context: Context,
@@ -805,9 +1055,13 @@ private suspend fun copyUriToCache(
     context.contentResolver
         .openInputStream(sourceUri)
         ?.use { input ->
-            destinationFile.outputStream().use { output ->
-                input.copyTo(output)
-            }
+
+            destinationFile
+                .outputStream()
+                .use { output ->
+
+                    input.copyTo(output)
+                }
         }
         ?: throw IllegalStateException(
             "Unable to open selected image."
