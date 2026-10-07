@@ -3,12 +3,14 @@ package com.melon.meloscan.ui.screens
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
+
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -22,14 +24,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+//import androidx.compose.runtime.rememberInfiniteTransition
+
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,10 +47,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
 import androidx.navigation.NavController
+
 import coil.compose.AsyncImage
-import com.melon.meloscan.ml.YOLO11mLiteRTDetector
+
 import androidx.compose.ui.platform.LocalContext
+
+import com.melon.meloscan.ml.YOLO11mLiteRTDetector
+
 
 @Composable
 fun AnalyzingScreen(
@@ -51,8 +63,28 @@ fun AnalyzingScreen(
     scanType: String,
     imageUri: String?
 ) {
-    val isLeafDisease = scanType == "Leaf Disease"
+
     val context = LocalContext.current
+
+    /*
+     * ========================================================================
+     * IMAGE URI
+     * ========================================================================
+     *
+     * This screen is now ONLY for Leaf Disease.
+     *
+     * Fruit Quality has been moved to:
+     *
+     *     AnalyzingFruit.kt
+     *
+     * Therefore this file does not contain:
+     *
+     *     - Random Forest
+     *     - ONNX
+     *     - FruitQualityFeatureExtractor
+     *     - Fruit validation
+     *     - Good / Bad classification
+     */
 
     val image = remember(imageUri) {
         imageUri?.let {
@@ -64,9 +96,13 @@ fun AnalyzingScreen(
         }
     }
 
+
     /*
-     * Processing animation.
+     * ========================================================================
+     * PROCESSING ANIMATION
+     * ========================================================================
      */
+
     val infiniteTransition =
         rememberInfiniteTransition(
             label = "processing_animation"
@@ -85,43 +121,67 @@ fun AnalyzingScreen(
         label = "rotation"
     )
 
+
     /*
-     * REAL YOLO11m INFERENCE
+     * ========================================================================
+     * LEAF DISEASE YOLO11m INFERENCE
+     * ========================================================================
      *
-     * Leaf Disease:
-     * image -> Bitmap -> YOLO11m LiteRT -> detection
+     * Pipeline:
      *
-     * If a supported disease is detected:
-     *     navigate to the normal result screen.
+     *     Captured/Gallery Image
+     *             ↓
+     *         Bitmap
+     *             ↓
+     *     YOLO11m LiteRT
+     *             ↓
+     *        Detections
+     *             ↓
+     *   Highest Confidence
+     *             ↓
+     *       ResultScreen
      *
-     * If nothing is detected:
-     *     navigate to the result screen with
-     *     "No Disease Detected".
+     * IMPORTANT:
      *
-     * Fruit Quality is not connected to YOLO11m.
+     * The YOLO11m model and detector are NOT modified here.
      */
-    LaunchedEffect(imageUri, scanType) {
+
+    LaunchedEffect(imageUri) {
+
+        /*
+         * ------------------------------------------------------------
+         * Validate image URI
+         * ------------------------------------------------------------
+         */
 
         if (imageUri == null) {
+
             Log.e(
                 "YOLO11mCaptureTest",
                 "Image URI is null."
             )
+
             return@LaunchedEffect
         }
 
-        if (!isLeafDisease) {
-            Log.d(
-                "YOLO11mCaptureTest",
-                "Fruit Quality is not connected to YOLO11m."
-            )
-            return@LaunchedEffect
-        }
+
+        /*
+         * ------------------------------------------------------------
+         * Variables
+         * ------------------------------------------------------------
+         */
 
         var bitmap: android.graphics.Bitmap? = null
         var detector: YOLO11mLiteRTDetector? = null
 
+
         try {
+
+            /*
+             * ------------------------------------------------------------
+             * Decode image
+             * ------------------------------------------------------------
+             */
 
             val uri = Uri.parse(imageUri)
 
@@ -130,6 +190,13 @@ fun AnalyzingScreen(
                 ?.use { inputStream ->
                     BitmapFactory.decodeStream(inputStream)
                 }
+
+
+            /*
+             * ------------------------------------------------------------
+             * Check decoded bitmap
+             * ------------------------------------------------------------
+             */
 
             if (bitmap == null) {
 
@@ -141,30 +208,46 @@ fun AnalyzingScreen(
                 return@LaunchedEffect
             }
 
+
             Log.d(
                 "YOLO11mCaptureTest",
                 "Captured image size: " +
                         "${bitmap.width} x ${bitmap.height}"
             )
 
-            /*
-             * Create the real YOLO11m LiteRT detector.
-             */
-            detector = YOLO11mLiteRTDetector(context)
 
             /*
-             * Run inference.
+             * ------------------------------------------------------------
+             * Create the real YOLO11m LiteRT detector
+             * ------------------------------------------------------------
              */
-            val detections = detector.detect(bitmap)
+
+            detector =
+                YOLO11mLiteRTDetector(context)
+
+
+            /*
+             * ------------------------------------------------------------
+             * Run YOLO11m inference
+             * ------------------------------------------------------------
+             */
+
+            val detections =
+                detector.detect(bitmap)
+
 
             Log.d(
                 "YOLO11mCaptureTest",
                 "Number of detections: ${detections.size}"
             )
 
+
             /*
-             * Log every detection for testing.
+             * ------------------------------------------------------------
+             * Log every detection
+             * ------------------------------------------------------------
              */
+
             detections.forEachIndexed { index, detection ->
 
                 Log.d(
@@ -176,31 +259,47 @@ fun AnalyzingScreen(
                 )
             }
 
+
             /*
-             * ================================================================
+             * =================================================================
              * DISEASE DETECTED
-             * ================================================================
+             * =================================================================
              */
+
             if (detections.isNotEmpty()) {
+
+                /*
+                 * Select the detection with the highest confidence.
+                 */
 
                 val bestDetection =
                     detections.maxByOrNull {
                         it.confidence
                     }
 
+
                 if (bestDetection != null) {
 
                     /*
-                     * Convert:
+                     * ---------------------------------------------------------
+                     * Convert model class name into display name.
+                     *
+                     * Example:
                      *
                      * anthracnose
-                     *       ↓
+                     *      ↓
                      * Anthracnose
                      *
                      * downy_mildew
-                     *       ↓
+                     *      ↓
                      * Downy Mildew
+                     *
+                     * mosaic_disease
+                     *      ↓
+                     * Mosaic Disease
+                     * ---------------------------------------------------------
                      */
+
                     val resultName =
                         bestDetection.className
                             .replace("_", " ")
@@ -211,9 +310,19 @@ fun AnalyzingScreen(
                                 }
                             }
 
+
+                    /*
+                     * ---------------------------------------------------------
+                     * Convert confidence to percentage.
+                     * ---------------------------------------------------------
+                     */
+
                     val confidencePercent =
-                        (bestDetection.confidence * 100)
-                            .toInt()
+                        (
+                                bestDetection.confidence *
+                                        100
+                                ).toInt()
+
 
                     Log.d(
                         "YOLO11mCaptureTest",
@@ -221,6 +330,13 @@ fun AnalyzingScreen(
                                 "class=$resultName, " +
                                 "confidence=$confidencePercent%"
                     )
+
+
+                    /*
+                     * ---------------------------------------------------------
+                     * Encode navigation parameters.
+                     * ---------------------------------------------------------
+                     */
 
                     val encodedType =
                         Uri.encode(scanType)
@@ -236,9 +352,17 @@ fun AnalyzingScreen(
                     val encodedImageUri =
                         Uri.encode(imageUri)
 
+
                     /*
-                     * Navigate to the normal result screen.
+                     * ---------------------------------------------------------
+                     * Navigate to the existing ResultScreen.
+                     *
+                     * IMPORTANT:
+                     *
+                     * ResultScreen.kt is NOT changed.
+                     * ---------------------------------------------------------
                      */
+
                     navController.navigate(
                         "result?" +
                                 "type=$encodedType" +
@@ -249,25 +373,13 @@ fun AnalyzingScreen(
                     )
                 }
 
+
             } else {
 
                 /*
-                 * ============================================================
+                 * =================================================================
                  * NO DISEASE DETECTED
-                 * ============================================================
-                 *
-                 * IMPORTANT:
-                 *
-                 * Previously this only logged the message, which caused
-                 * AnalyzingScreen to remain visible forever.
-                 *
-                 * Now we navigate to the result screen and let
-                 * ScanResultScreen display:
-                 *
-                 * "No Disease Detected"
-                 *
-                 * together with the captured image and instructions
-                 * for taking a better image.
+                 * =================================================================
                  */
 
                 Log.d(
@@ -275,11 +387,14 @@ fun AnalyzingScreen(
                     "No supported disease detected."
                 )
 
+
                 val encodedType =
                     Uri.encode(scanType)
 
                 val encodedResult =
-                    Uri.encode("No Disease Detected")
+                    Uri.encode(
+                        "No Disease Detected"
+                    )
 
                 val encodedMedicine =
                     Uri.encode(
@@ -290,9 +405,11 @@ fun AnalyzingScreen(
                 val encodedImageUri =
                     Uri.encode(imageUri)
 
+
                 /*
                  * Confidence is 0 because no disease was detected.
                  */
+
                 navController.navigate(
                     "result?" +
                             "type=$encodedType" +
@@ -303,34 +420,45 @@ fun AnalyzingScreen(
                 )
             }
 
+
         } catch (e: Exception) {
 
             /*
+             * ------------------------------------------------------------
              * Keep the actual error in Logcat.
              *
              * We do NOT create a fake disease result.
+             * ------------------------------------------------------------
              */
+
             Log.e(
                 "YOLO11mCaptureTest",
                 "YOLO11m inference failed.",
                 e
             )
 
+
         } finally {
 
             /*
-             * Release the detector and bitmap.
+             * ------------------------------------------------------------
+             * Release detector and bitmap.
+             * ------------------------------------------------------------
              */
+
             detector?.close()
 
             bitmap?.recycle()
         }
     }
 
+
     /*
      * ========================================================================
      * ANALYZING SCREEN UI
      * ========================================================================
+     *
+     * This keeps the Leaf Disease analyzing UI from the original file.
      */
 
     Box(
@@ -342,8 +470,11 @@ fun AnalyzingScreen(
     ) {
 
         /*
+         * ====================================================================
          * TOP HEADER
+         * ====================================================================
          */
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -357,11 +488,7 @@ fun AnalyzingScreen(
         ) {
 
             Text(
-                text = if (isLeafDisease) {
-                    "Disease Detection"
-                } else {
-                    "Fruit Quality Evaluation"
-                },
+                text = "Disease Detection",
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1B1B1B)
@@ -378,9 +505,13 @@ fun AnalyzingScreen(
             )
         }
 
+
         /*
+         * ====================================================================
          * IMAGE PREVIEW
+         * ====================================================================
          */
+
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
@@ -402,7 +533,8 @@ fun AnalyzingScreen(
                     color = Color(0xFFD8DED8),
                     shape = RoundedCornerShape(24.dp)
                 ),
-            contentAlignment = Alignment.Center
+            contentAlignment =
+                Alignment.Center
         ) {
 
             if (image != null) {
@@ -443,9 +575,13 @@ fun AnalyzingScreen(
                 }
             }
 
+
             /*
+             * =================================================================
              * DARK OVERLAY
+             * =================================================================
              */
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -456,9 +592,13 @@ fun AnalyzingScreen(
                     )
             )
 
+
             /*
+             * =================================================================
              * PROCESSING INDICATOR
+             * =================================================================
              */
+
             Box(
                 modifier = Modifier
                     .size(105.dp)
@@ -480,9 +620,13 @@ fun AnalyzingScreen(
                 )
             }
 
+
             /*
+             * =================================================================
              * SCANNING LABEL
+             * =================================================================
              */
+
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -504,11 +648,7 @@ fun AnalyzingScreen(
             ) {
 
                 Text(
-                    text = if (isLeafDisease) {
-                        "Detecting leaf disease..."
-                    } else {
-                        "Evaluating fruit quality..."
-                    },
+                    text = "Detecting leaf disease...",
                     color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
@@ -516,9 +656,13 @@ fun AnalyzingScreen(
             }
         }
 
+
         /*
+         * ====================================================================
          * PROCESSING INFORMATION
+         * ====================================================================
          */
+
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -533,11 +677,8 @@ fun AnalyzingScreen(
         ) {
 
             Text(
-                text = if (isLeafDisease) {
-                    "Checking the watermelon leaf for disease patterns"
-                } else {
-                    "Analyzing visible fruit quality characteristics"
-                },
+                text =
+                    "Checking the watermelon leaf for disease patterns",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color(0xFF242424),
@@ -549,11 +690,8 @@ fun AnalyzingScreen(
             )
 
             Text(
-                text = if (isLeafDisease) {
-                    "The image will be processed by the selected detection model."
-                } else {
-                    "The image will be processed using the fruit quality model."
-                },
+                text =
+                    "The image will be processed by the selected detection model.",
                 fontSize = 12.sp,
                 color = Color(0xFF777777),
                 textAlign = TextAlign.Center,
@@ -564,9 +702,13 @@ fun AnalyzingScreen(
                 modifier = Modifier.height(16.dp)
             )
 
+
             /*
+             * =================================================================
              * PROCESSING STEPS
+             * =================================================================
              */
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement =
@@ -598,14 +740,19 @@ fun AnalyzingScreen(
     }
 }
 
+
 /*
- * Small processing step indicator.
+ * ============================================================================
+ * SMALL PROCESSING STEP INDICATOR
+ * ============================================================================
  */
+
 @Composable
 private fun ProcessingStep(
     number: String,
     text: String
 ) {
+
     Column(
         horizontalAlignment =
             Alignment.CenterHorizontally
@@ -642,11 +789,16 @@ private fun ProcessingStep(
     }
 }
 
+
 /*
- * Connector between processing steps.
+ * ============================================================================
+ * CONNECTOR BETWEEN PROCESSING STEPS
+ * ============================================================================
  */
+
 @Composable
 private fun ProcessingLine() {
+
     Box(
         modifier = Modifier
             .width(32.dp)

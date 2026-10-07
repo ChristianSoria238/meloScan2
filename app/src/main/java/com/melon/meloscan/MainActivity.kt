@@ -12,9 +12,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.melon.meloscan.ui.screens.*
 import com.melon.meloscan.ui.theme.MeloScanTheme
-import android.graphics.BitmapFactory
-import android.util.Log
-import com.melon.meloscan.ml.YOLO11mLiteRTDetector
+//import android.graphics.BitmapFactory
+//import android.util.Log
+//import com.melon.meloscan.ml.YOLO11mLiteRTDetector
+
 
 
 class MainActivity : ComponentActivity() {
@@ -51,6 +52,12 @@ fun AppNavigation() {
 
         composable("leaf_scan") {
             ScanScreen(navController = navController, scanType = "Leaf Disease")
+        }
+
+        composable("leaf_live") {
+            LiveLeafDiseaseScreen(
+                navController = navController
+            )
         }
 
         composable("fruit_scan") {
@@ -90,18 +97,42 @@ fun AppNavigation() {
         }
 
         composable(
-            route = "analyzing?type={type}&uri={uri}",
+            "analyzing?type={type}&uri={uri}",
             arguments = listOf(
-                navArgument("type") { type = NavType.StringType },
-                navArgument("uri") { 
+                navArgument("type") {
                     type = NavType.StringType
-                    nullable = true 
+                    nullable = false
+                },
+                navArgument("uri") {
+                    type = NavType.StringType
+                    nullable = false
                 }
             )
         ) { backStackEntry ->
-            val type = backStackEntry.arguments?.getString("type") ?: "Leaf Disease"
-            val uri = backStackEntry.arguments?.getString("uri")
-            AnalyzingScreen(navController = navController, scanType = type, imageUri = uri)
+
+            val type =
+                backStackEntry.arguments?.getString("type")
+                    ?: "Leaf Disease"
+
+            val uri =
+                backStackEntry.arguments?.getString("uri")
+
+            if (type == "Fruit Quality") {
+
+                AnalyzingFruit(
+                    navController = navController,
+                    scanType = type,
+                    imageUri = uri
+                )
+
+            } else {
+
+                AnalyzingScreen(
+                    navController = navController,
+                    scanType = type,
+                    imageUri = uri
+                )
+            }
         }
 
         composable(
